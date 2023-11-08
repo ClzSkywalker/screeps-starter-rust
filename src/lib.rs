@@ -3,16 +3,20 @@ use std::collections::{hash_map::Entry, HashMap};
 
 use log::*;
 use screeps::{
-    constants::{ErrorCode, Part, ResourceType},
+    constants::{Part, ResourceType},
     enums::StructureObject,
     find, game,
-    local::ObjectId,
-    objects::{Creep, Source, StructureController},
+    objects::Creep,
     prelude::*,
 };
 use wasm_bindgen::prelude::*;
 
+use crate::model::model::CreepTarget;
+use crate::role::{builder, harvester};
+
 mod logging;
+mod model;
+mod role;
 
 // add wasm_bindgen to any function you would like to expose for call from js
 #[wasm_bindgen]
@@ -26,18 +30,13 @@ thread_local! {
     static CREEP_TARGETS: RefCell<HashMap<String, CreepTarget>> = RefCell::new(HashMap::new());
 }
 
-// this enum will represent a creep's lock on a specific target object, storing a js reference
-// to the object id so that we can grab a fresh reference to the object each successive tick,
-// since screeps game objects become 'stale' and shouldn't be used beyond the tick they were fetched
-#[derive(Clone)]
-enum CreepTarget {
-    Upgrade(ObjectId<StructureController>),
-    Harvest(ObjectId<Source>),
-}
-
 // to use a reserved name as a function name, use `js_name`:
 #[wasm_bindgen(js_name = loop)]
 pub fn game_loop() {
+    debug!("loop starting! CPU: {}", game::cpu::get_used());
+    for r in game::rooms().values(){
+        debug!("room:{}, energy:{}",r.name(), r.energy_available());
+    }
     debug!("loop starting! CPU: {}", game::cpu::get_used());
     // mutably borrow the creep_targets refcell, which is holding our creep target locks
     // in the wasm heap
@@ -59,9 +58,6 @@ pub fn game_loop() {
             // create a unique name, spawn.
             let name_base = game::time();
             let name = format!("{}-{}", name_base, additional);
-            // note that this bot has a fatal flaw; spawning a creep
-            // creates Memory.creeps[creep_name] which will build up forever;
-            // these memory entries should be prevented (todo doc link on how) or cleaned up
             match spawn.spawn_creep(&body, &name) {
                 Ok(()) => additional += 1,
                 Err(e) => warn!("couldn't spawn: {:?}", e),
@@ -81,42 +77,30 @@ fn run_creep(creep: &Creep, creep_targets: &mut HashMap<String, CreepTarget>) {
 
     let target = creep_targets.entry(name);
     match target {
+        // 非空
         Entry::Occupied(entry) => {
             let creep_target = entry.get();
             match creep_target {
-                CreepTarget::Upgrade(controller_id)
-                    if creep.store().get_used_capacity(Some(ResourceType::Energy)) > 0 =>
-                {
-                    if let Some(controller) = controller_id.resolve() {
-                        creep
-                            .upgrade_controller(&controller)
-                            .unwrap_or_else(|e| match e {
-                                ErrorCode::NotInRange => {
-                                    let _ = creep.move_to(&controller);
-                                }
-                                _ => {
-                                    warn!("couldn't upgrade: {:?}", e);
-                                    entry.remove();
-                                }
-                            });
-                    } else {
-                        entry.remove();
+                // 升级建筑物
+                CreepTarget::Upgrade(controller_id) => {
+                    let ber = builder::Builder::new(creep, controller_id);
+                    match ber.build() {
+                        Ok(_) => {}
+                        Err(e) => {
+                            warn!("err:{:?}", e);
+                            entry.remove();
+                        }
                     }
                 }
-                CreepTarget::Harvest(source_id)
-                    if creep.store().get_free_capacity(Some(ResourceType::Energy)) > 0 =>
-                {
-                    if let Some(source) = source_id.resolve() {
-                        if creep.pos().is_near_to(source.pos()) {
-                            creep.harvest(&source).unwrap_or_else(|e| {
-                                warn!("couldn't harvest: {:?}", e);
-                                entry.remove();
-                            });
-                        } else {
-                            let _ = creep.move_to(&source);
+                // 可收割的资源
+                CreepTarget::Harvest(source_id) => {
+                    let hman = harvester::Harverster::new(creep, source_id);
+                    match hman.harveste() {
+                        Ok(_) => {}
+                        Err(e) => {
+                            warn!("err:{:?}", e);
+                            entry.remove();
                         }
-                    } else {
-                        entry.remove();
                     }
                 }
                 _ => {
@@ -124,6 +108,7 @@ fn run_creep(creep: &Creep, creep_targets: &mut HashMap<String, CreepTarget>) {
                 }
             };
         }
+        // 空资源
         Entry::Vacant(entry) => {
             // no target, let's find one depending on if we have energy
             let room = creep.room().expect("couldn't resolve creep room");
