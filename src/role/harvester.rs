@@ -3,8 +3,6 @@ use screeps::{
     SharedCreepProperties, Source,
 };
 
-use log::*;
-
 pub struct Harverster<'a> {
     pub creep: &'a Creep,
     pub source: &'a ObjectId<Source>,
@@ -30,6 +28,9 @@ impl<'a> Harverster<'a> {
         }
         match self.source.resolve() {
             Some(s) => {
+                if s.energy() == 0 {
+                    return Err(ErrorCode::Busy);
+                }
                 // 资源在附近则收割资源
                 if self.creep.pos().is_near_to(s.pos()) {
                     match self.creep.harvest(&s) {
@@ -38,18 +39,23 @@ impl<'a> Harverster<'a> {
                     };
                 } else {
                     // 移动到资源附近
-                    self.creep.move_to(&s).expect("can not move");
+                    match self.creep.move_to(&s) {
+                        Ok(_) => {},
+                        Err(e) => {return Err(e)},
+                    }
                     // 样式设计
-                    self.creep.move_to_with_options(
-                        &s,
-                        Some(
-                            MoveToOptions::new().visualize_path_style(
-                                PolyStyle::default()
-                                    .line_style(screeps::LineDrawStyle::Solid)
-                                    .stroke("#07a125"),
+                    self.creep
+                        .move_to_with_options(
+                            &s,
+                            Some(
+                                MoveToOptions::new().visualize_path_style(
+                                    PolyStyle::default()
+                                        .line_style(screeps::LineDrawStyle::Solid)
+                                        .stroke("#07a125"),
+                                ),
                             ),
-                        ),
-                    ).expect("creep desciption");
+                        )
+                        .expect("creep desciption");
                     return Ok(());
                 }
             }

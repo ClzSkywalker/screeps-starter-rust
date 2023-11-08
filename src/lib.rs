@@ -37,7 +37,6 @@ pub fn game_loop() {
     for r in game::rooms().values(){
         debug!("room:{}, energy:{}",r.name(), r.energy_available());
     }
-    debug!("loop starting! CPU: {}", game::cpu::get_used());
     // mutably borrow the creep_targets refcell, which is holding our creep target locks
     // in the wasm heap
     CREEP_TARGETS.with(|creep_targets_refcell| {
@@ -64,8 +63,6 @@ pub fn game_loop() {
             }
         }
     }
-
-    info!("done! cpu: {}", game::cpu::get_used())
 }
 
 fn run_creep(creep: &Creep, creep_targets: &mut HashMap<String, CreepTarget>) {
