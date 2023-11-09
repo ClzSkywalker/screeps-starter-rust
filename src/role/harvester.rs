@@ -3,17 +3,19 @@ use screeps::{
     SharedCreepProperties, Source,
 };
 
+const ROLE_HARVERSTER: &str = "Harverster";
+
 pub struct Harverster<'a> {
     pub creep: &'a Creep,
     pub source: &'a ObjectId<Source>,
 }
 
 impl<'a> Harverster<'a> {
+    pub fn role() -> &'a str {
+        return ROLE_HARVERSTER;
+    }
     pub fn new(creep: &'a Creep, source: &'a ObjectId<Source>) -> Harverster<'a> {
-        return Harverster {
-            creep: creep,
-            source: source,
-        };
+        Harverster { creep, source }
     }
 
     // 有资源则收割资源，没有则移除资源点
@@ -40,8 +42,8 @@ impl<'a> Harverster<'a> {
                 } else {
                     // 移动到资源附近
                     match self.creep.move_to(&s) {
-                        Ok(_) => {},
-                        Err(e) => {return Err(e)},
+                        Ok(_) => {}
+                        Err(e) => return Err(e),
                     }
                     // 样式设计
                     self.creep
@@ -62,6 +64,6 @@ impl<'a> Harverster<'a> {
             // 资源不存在
             None => return Err(ErrorCode::InvalidArgs),
         }
-        return Ok(());
+        Ok(())
     }
 }
