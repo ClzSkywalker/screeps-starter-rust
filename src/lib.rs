@@ -1,7 +1,9 @@
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::{hash_map::Entry, HashMap};
 
 use log::*;
+use model::model::CreepMemory;
 use screeps::Source;
 use screeps::{
     constants::{Part, ResourceType},
@@ -12,8 +14,8 @@ use screeps::{
 };
 use wasm_bindgen::prelude::*;
 
-use crate::model::model::CreepTarget;
-use crate::role::{builder, harvester};
+use crate::model::model::{CreepTarget, ManagerRoleCount, StoreStatus};
+use crate::role::{harvester, upgrade_controller, RoleEnum};
 
 mod logging;
 mod model;
@@ -29,14 +31,14 @@ pub fn setup() {
 // this is one way to persist data between ticks within Rust's memory, as opposed to
 // keeping state in memory on game objects - but will be lost on global resets!
 thread_local! {
+    // role count
+    static CREEP_ROLE_MAP:RefCell<HashMap<String, i32>>= RefCell::new(HashMap::new());
     // 资源id-采矿id
-    static SOURCE_MAP: RefCell<HashMap<String, [String;2]>> = RefCell::new(HashMap::new());
+    static CREEP_STATUS: RefCell<HashMap<String, CreepMemory>>= RefCell::new(HashMap::new());
     // 采矿者
     static WORK_TARGETS: RefCell<HashMap<String, CreepTarget>> = RefCell::new(HashMap::new());
     // 升级者
     static UPGRADER_TARGETS: RefCell<HashMap<String, CreepTarget>> = RefCell::new(HashMap::new());
-    // 运输者
-    static MOVE_TARGETS: RefCell<HashMap<String, CreepTarget>> = RefCell::new(HashMap::new());
 }
 
 // to use a reserved name as a function name, use `js_name`:
@@ -45,41 +47,91 @@ pub fn game_loop() {
     debug!("loop starting! CPU: {}", game::cpu::get_used());
     // mutably borrow the creep_targets refcell, which is holding our creep target locks
     // in the wasm heap
+    let mut role_mamager = ManagerRoleCount::default();
+    CREEP_ROLE_MAP.with(|item| {
+        let mut item = item.borrow_mut();
+        match item.get(&RoleEnum::Harvester.to_string()) {
+            Some(r) => {
+                role_mamager.harvester = *r;
+            }
+            None => {}
+        };
+        match item.get(&RoleEnum::UpgradeController.to_string()) {
+            Some(r) => {
+                role_mamager.upgrade = *r;
+            }
+            None => {}
+        };
+        match item.get(&RoleEnum::Builder.to_string()) {
+            Some(r) => {
+                role_mamager.builder = *r;
+            }
+            None => {}
+        };
 
-    WORK_TARGETS.with(|creep_targets_refcell| {
-        let mut creep_targets = creep_targets_refcell.borrow_mut();
-        debug!("running creeps");
-        for creep in game::creeps().values() {
-            // if creep.name().contains(role::builder::Builder::role()) {}
-            run_creep(&creep, &mut creep_targets);
-        }
-    });
+        CREEP_STATUS.with(|creep_status_map| {
+            let mut creep_status_map = creep_status_map.borrow_mut();
+            for creep in game::creeps().values() {
+                match creep_status_map.get(&creep.name()) {
+                    Some(_) => {}
+                    None => {
+                        creep_status_map.insert(
+                            creep.name(),
+                            CreepMemory {
+                                name: creep.name(),
+                                role: role_mamager.get_role(),
+                                status: model::model::CreepStatus::Default,
+                                store_status: StoreStatus::new(&creep),
+                            },
+                        );
+                    }
+                };
+            }
 
-    debug!("running spawns");
-    let mut additional = 0;
-    for spawn in game::spawns().values() {
-        debug!("running spawn {}", String::from(spawn.name()));
+            WORK_TARGETS.with(|creep_targets_refcell| {
+                let mut creep_targets = creep_targets_refcell.borrow_mut();
+                debug!("running creeps");
+                for creep in game::creeps().values() {
+                    // if creep.name().contains(role::builder::Builder::role()) {}
+                    run_creep(&creep, &creep_status_map, &mut creep_targets);
+                }
+            });
+        });
 
-        let body = [Part::Move, Part::Carry, Part::Work, Part::Work];
-        if spawn.room().unwrap().energy_available() >= body.iter().map(|p| p.cost()).sum() {
-            // create a unique name, spawn.
-            let name_base = game::time();
-            let name = format!("{}-{}", name_base, additional);
-            match spawn.spawn_creep(&body, &name) {
-                Ok(()) => additional += 1,
-                Err(e) => warn!("couldn't spawn: {:?}", e),
+        let mut additional = 0;
+        for spawn in game::spawns().values() {
+            debug!("running spawn {}", String::from(spawn.name()));
+
+            let body = [Part::Move, Part::Carry, Part::Work, Part::Work];
+            if spawn.room().unwrap().energy_available() >= body.iter().map(|p| p.cost()).sum() {
+                // create a unique name, spawn.
+                let name_base = game::time();
+                let name = format!("{}-{}", name_base, additional);
+                match spawn.spawn_creep(&body, &name) {
+                    Ok(()) => {
+                        additional += 1;
+                    }
+                    Err(e) => warn!("couldn't spawn: {:?}", e),
+                }
             }
         }
-    }
+    });
 }
 
-fn run_creep(creep: &Creep, creep_targets: &mut HashMap<String, CreepTarget>) {
+fn run_creep(
+    creep: &Creep,
+    creep_status: &HashMap<String, CreepMemory>,
+    creep_targets: &mut HashMap<String, CreepTarget>,
+) {
     // 是否在孵化中
     if creep.spawning() {
         return;
     }
     let name = creep.name();
-    debug!("running creep {}", name);
+    let status = match creep_status.get(&name) {
+        Some(r) => r,
+        None => return,
+    };
 
     let target = creep_targets.entry(name);
     match target {
@@ -89,25 +141,27 @@ fn run_creep(creep: &Creep, creep_targets: &mut HashMap<String, CreepTarget>) {
             match creep_target {
                 // 升级建筑物
                 CreepTarget::ControllerUpgrade(controller_id) => {
-                    let ber = builder::Builder::new(creep, controller_id);
+                    let ber = upgrade_controller::Builder::new(creep, controller_id);
                     match ber.build() {
                         Ok(_) => {}
-                        Err(e) => {
-                            warn!("err:{:?}", e);
+                        Err(_) => {
                             entry.remove();
                         }
                     }
                 }
                 // 可收割的资源
                 CreepTarget::Harvest(source_id) => {
-                    let hman = harvester::Harverster::new(creep, source_id);
+                    let mut hman = harvester::Harverster::new(creep, source_id);
                     match hman.harveste() {
-                        Ok(_) => {}
-                        Err(e) => {
-                            warn!("err:{:?}", e);
+                        Ok(_) => {
+                            if hman.is_remove_task() {
+                                entry.remove();
+                            }
+                        }
+                        Err(_) => {
                             entry.remove();
                         }
-                    }
+                    };
                 }
                 _ => {
                     entry.remove();
@@ -116,7 +170,18 @@ fn run_creep(creep: &Creep, creep_targets: &mut HashMap<String, CreepTarget>) {
         }
         // 空资源
         Entry::Vacant(entry) => {
+            // 疲劳值大于0不移动
+            if creep.fatigue() > 0 {
+                return;
+            }
+            // match status.role {
+            //     RoleEnum::Harvester => {
+
+            //     },
+            // }
+            
             // no target, let's find one depending on if we have energy
+            // 需要升级的控制器
             let room = creep.room().expect("couldn't resolve creep room");
             if creep.store().get_free_capacity(Some(ResourceType::Energy)) == 0 {
                 for structure in room.find(find::STRUCTURES, None).iter() {
@@ -125,22 +190,25 @@ fn run_creep(creep: &Creep, creep_targets: &mut HashMap<String, CreepTarget>) {
                             entry.insert(CreepTarget::ControllerUpgrade(controller.id()));
                             return;
                         }
-                        return;
                     }
                 }
-            } else {
-                let mut source: Option<Source> = None;
-                for ele in room.find(find::SOURCES_ACTIVE, None) {
-                    if creep.move_to(ele.clone()).is_ok() {
-                        source = Some(ele);
-                        break;
-                    };
-                }
-                // entry.insert(CreepTarget::Harvest(source.id()));
-                if let Some(r) = source {
-                    entry.insert(CreepTarget::Harvest(r.id()));
+            }
+
+            // if creep.store().get_free_capacity(Some(ResourceType::Energy))==0&&
+            // creep.set_memory(&JsValue::from_str(s));
+            // creep.memory()
+
+            let mut source: Option<Source> = None;
+            for ele in room.find(find::SOURCES_ACTIVE, None) {
+                if creep.move_to(ele.clone()).is_ok() {
+                    source = Some(ele);
+                    break;
                 };
             }
+            // entry.insert(CreepTarget::Harvest(source.id()));
+            if let Some(r) = source {
+                entry.insert(CreepTarget::Harvest(r.id()));
+            };
         }
     }
 }

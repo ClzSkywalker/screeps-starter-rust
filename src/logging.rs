@@ -36,8 +36,10 @@ pub fn setup_logging(verbosity: log::LevelFilter) {
         .level(verbosity)
         .format(|out, message, record| {
             out.finish(format_args!(
-                "({}) {}: {}",
+                "({}) file:{},line:{}, {}: {}",
                 record.level(),
+                record.file().unwrap(),
+                record.line().unwrap(),
                 record.target(),
                 message
             ))
