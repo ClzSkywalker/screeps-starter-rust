@@ -1,25 +1,36 @@
-use std::{cell::RefCell, collections::HashMap};
+// use std::cell::RefCell;
+// use std::collections::{hash_map::Entry, HashMap};
 
-use log::*;
-use model::model::{CreepMemory, StoreStatus};
+// use log::*;
+// use model::model::CreepMemory;
+// use role::builder;
+// use screeps::Source;
+// use screeps::{
+//     constants::{Part, ResourceType},
+//     enums::StructureObject,
+//     find, game,
+//     objects::Creep,
+//     prelude::*,
+// };
+// use wasm_bindgen::prelude::*;
 
-use screeps::{constants::Part, game, prelude::*};
-use wasm_bindgen::prelude::*;
+// use crate::model::model::{CreepTarget, ManagerRoleCount, StoreStatus};
+// use crate::role::{harvester, upgrade_controller, RoleEnum};
 
-mod logging;
-mod model;
-mod role;
-mod structure;
-mod utils;
+// mod logging;
+// mod model;
+// mod role;
+// mod structure;
+// mod  utils;
 
-// add wasm_bindgen to any function you would like to expose for call from js
-#[wasm_bindgen]
-pub fn setup() {
-    logging::setup_logging(logging::Info);
-}
+// // add wasm_bindgen to any function you would like to expose for call from js
+// #[wasm_bindgen]
+// pub fn setup() {
+//     logging::setup_logging(logging::Info);
+// }
 
-// this is one way to persist data between ticks within Rust's memory, as opposed to
-// keeping state in memory on game objects - but will be lost on global resets!
+// // this is one way to persist data between ticks within Rust's memory, as opposed to
+// // keeping state in memory on game objects - but will be lost on global resets!
 // thread_local! {
 //     // role count
 //     static CREEP_ROLE_MAP:RefCell<HashMap<String, i32>>= RefCell::new(HashMap::new());
@@ -31,65 +42,89 @@ pub fn setup() {
 //     static UPGRADER_TARGETS: RefCell<HashMap<String, CreepTarget>> = RefCell::new(HashMap::new());
 // }
 
-thread_local! {
-    // key-sourceId value-creep id
-    static WORK_TARGETS: RefCell<HashMap<String, Vec<String>>> = RefCell::new(HashMap::new());
-}
+// // to use a reserved name as a function name, use `js_name`:
+// #[wasm_bindgen(js_name = loop)]
+// pub fn game_loop() {
+//     debug!("loop starting! CPU: {}", game::cpu::get_used());
+//     // mutably borrow the creep_targets refcell, which is holding our creep target locks
+//     // in the wasm heap
+//     let mut role_mamager = ManagerRoleCount::default();
+//     CREEP_ROLE_MAP.with(|item| {
+//         let mut item = item.borrow_mut();
+//         match item.get(&RoleEnum::Harvester.to_string()) {
+//             Some(r) => {
+//                 role_mamager.harvester = *r;
+//             }
+//             None => {}
+//         };
+//         match item.get(&RoleEnum::UpgradeController.to_string()) {
+//             Some(r) => {
+//                 role_mamager.upgrade = *r;
+//             }
+//             None => {}
+//         };
+//         match item.get(&RoleEnum::Builder.to_string()) {
+//             Some(r) => {
+//                 role_mamager.builder = *r;
+//             }
+//             None => {}
+//         };
 
-// to use a reserved name as a function name, use `js_name`:
-#[wasm_bindgen(js_name = loop)]
-pub fn game_loop() {
-    let mut creep_count = 0;
-    for creep in game::creeps().values() {
-        if creep.spawning() {
-            continue;
-        }
-        let r = match creep.memory().as_string() {
-            Some(r) => {
-                let c: CreepMemory = match serde_json::from_str(&r) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        warn!("{:?}", e);
-                        CreepMemory::default()
-                    }
-                };
-                c
-            }
-            None => {
-                let mut c = CreepMemory::default();
-                c.store_status = StoreStatus::new(&creep);
-                c
-            }
-        };
-        let mut har = role::harvester::Harvester::new(&creep, r.clone());
-        match har.run() {
-            Ok(_) => {}
-            Err(e) => {
-                warn!("{:?}", e);
-            }
-        };
-        creep.set_memory(&JsValue::from_str(&har.ctx.to_string().as_str()));
-        creep_count += 1;
-    }
-    let mut additional = 0;
-    for spawn in game::spawns().values() {
-        if creep_count > 0 {
-            continue;
-        }
-        let body = [Part::Move, Part::Move, Part::Carry, Part::Work];
-        if spawn.room().unwrap().energy_available() >= body.iter().map(|p| p.cost()).sum() {
-            // create a unique name, spawn.
-            let name_base = game::time();
-            let name = format!("{}-{}", name_base, additional);
-            match spawn.spawn_creep(&body, &name) {
-                Ok(()) => {
-                    additional += 1;
-                }
-                Err(e) => warn!("couldn't spawn: {:?}", e),
-            }
-        }
-    }
-}
+//         CREEP_STATUS.with(|creep_status_map| {
+//             let mut creep_status_map = creep_status_map.borrow_mut();
+//             for creep in game::creeps().values() {
+//                 match creep_status_map.get(&creep.name()) {
+//                     Some(_) => {}
+//                     None => {
+//                         let r = role_mamager.get_role();
+//                         let count = match item.get(&r.to_string()) {
+//                             Some(r) => *r,
+//                             None => 0,
+//                         };
+//                         item.insert(r.to_string(), count);
+//                         creep_status_map.insert(
+//                             creep.name(),
+//                             CreepMemory {
+//                                 name: creep.name(),
+//                                 role: r,
+//                                 status: model::model::CreepStatus::Default,
+//                                 store_status: StoreStatus::new(&creep),
+//                             },
+//                         );
+//                     }
+//                 };
+//             }
+
+//             WORK_TARGETS.with(|creep_targets_refcell| {
+//                 let mut creep_targets = creep_targets_refcell.borrow_mut();
+//                 debug!("running creeps");
+//                 for creep in game::creeps().values() {
+//                     creep
+//                     // if creep.name().contains(role::builder::Builder::role()) {}
+//                     run_creep(&creep, &creep_status_map, &mut creep_targets);
+//                 }
+//             });
+//         });
+
+//         let mut additional = 0;
+//         for spawn in game::spawns().values() {
+//             debug!("running spawn {}", String::from(spawn.name()));
+
+//             let body = [Part::Move, Part::Carry, Part::Work, Part::Work];
+//             if spawn.room().unwrap().energy_available() >= body.iter().map(|p| p.cost()).sum() {
+//                 // create a unique name, spawn.
+//                 let name_base = game::time();
+//                 let name = format!("{}-{}", name_base, additional);
+//                 match spawn.spawn_creep(&body, &name) {
+//                     Ok(()) => {
+//                         additional += 1;
+//                     }
+//                     Err(e) => warn!("couldn't spawn: {:?}", e),
+//                 }
+//             }
+//         }
+//     });
+// }
 
 // fn run_creep(
 //     creep: &Creep,

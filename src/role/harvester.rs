@@ -1,30 +1,25 @@
 use log::*;
-use screeps::{
-    Creep, ErrorCode, HasPosition, MoveToOptions, ObjectId, PolyStyle, ResourceType,
-    SharedCreepProperties, Source,
+use screeps::{Creep, ErrorCode, HasPosition, Room};
+
+use crate::{
+    model::model::{CreepMemory, CreepSourceStatus, StoreStatus},
+    utils,
 };
 
-use crate::model::model::HarversterStatus;
-
-use super::RoleEnum;
-
-pub struct Harverster<'a> {
+pub struct Harvester<'a> {
     pub creep: &'a Creep,
-    pub source: &'a ObjectId<Source>,
-    pub status: HarversterStatus,
+    pub room: Room,
+    pub ctx: CreepMemory,
 }
 
-impl<'a> Harverster<'a> {
-    pub fn role() -> RoleEnum {
-        return RoleEnum::Harvester;
-    }
+impl<'a> Harvester<'a> {
+    // pub fn role(&self) -> RoleEnum {
+    //     return self.ctx.role;
+    // }
 
-    pub fn new(creep: &'a Creep, source: &'a ObjectId<Source>) -> Harverster<'a> {
-        Harverster {
-            creep,
-            source,
-            status: HarversterStatus::Default,
-        }
+    pub fn new(creep: &'a Creep, ctx: CreepMemory) -> Harvester<'a> {
+        let room = creep.room().expect("room not found");
+        Harvester { creep, room, ctx }
     }
 
     pub fn check(&self) -> bool {
@@ -34,39 +29,68 @@ impl<'a> Harverster<'a> {
         true
     }
 
-    // 是否该移除该任务
-    pub fn is_remove_task(&self) -> bool {
-        match self.status {
-            HarversterStatus::Full
-            | HarversterStatus::SourceEmpty
-            | HarversterStatus::SourceNotfound => {
-                return true;
+    pub fn set_status(&mut self) {
+        self.ctx.store_status = StoreStatus::new(self.creep);
+        match self.ctx.store_status {
+            StoreStatus::Empty => {
+                self.ctx.status = CreepSourceStatus::Harversting;
             }
-            _ => return false,
-        }
+            StoreStatus::UnderFill => {
+                if self.ctx.status == CreepSourceStatus::SourceNotfound {
+                    self.ctx.status = CreepSourceStatus::Harversting;
+                }
+            }
+            StoreStatus::Full => {
+                self.ctx.status = CreepSourceStatus::Building;
+            }
+        };
     }
 
-    // 有资源则收割资源，没有则移除资源点
-    pub fn harveste(&mut self) -> Result<(), ErrorCode> {
+    pub fn run(&mut self) -> Result<(), ErrorCode> {
         if !self.check() {
             return Ok(());
         }
+        self.set_status();
+        match self.creep.say(self.ctx.status.to_string().as_str(), false) {
+            Ok(_) => {}
+            Err(e) => {
+                warn!("{:?}", e);
+            }
+        };
+        match self.harveste() {
+            Ok(_) => {}
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        };
+        match self.consume() {
+            Ok(_) => {}
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        };
+        Ok(())
+    }
 
-        if self
-            .creep
-            .store()
-            .get_free_capacity(Some(ResourceType::Energy))
-            == 0
-        {
-            self.status = HarversterStatus::Full;
+    // 有资源则收割资源
+    pub fn harveste(&mut self) -> Result<(), ErrorCode> {
+        if self.ctx.status != CreepSourceStatus::Harversting {
             return Ok(());
         }
-        match self.source.resolve() {
+
+        let source = match utils::find::find_source(self.creep, &self.room) {
+            Some(r) => r,
+            None => {
+                self.ctx.status = CreepSourceStatus::SourceNotfound;
+                warn!("not found source");
+                return Ok(());
+            }
+        };
+
+        match source.resolve() {
             Some(s) => {
-                if s.energy() == 0 {
-                    self.status = HarversterStatus::SourceEmpty;
-                    return Err(ErrorCode::NotEnough);
-                }
                 // 资源在附近则收割资源
                 if self.creep.pos().is_near_to(s.pos()) {
                     match self.creep.harvest(&s) {
@@ -77,24 +101,10 @@ impl<'a> Harverster<'a> {
                         }
                     };
                 } else {
-                    // 移动到资源附近
-                    match self.creep.move_to(&s) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            warn!("{:?}", e);
-                            return Err(e);
-                        }
-                    }
-                    // 样式设计
-                    match self.creep.move_to_with_options(
+                    match utils::line::route_option(
+                        &mut self.creep,
                         &s,
-                        Some(
-                            MoveToOptions::new().visualize_path_style(
-                                PolyStyle::default()
-                                    .line_style(screeps::LineDrawStyle::Solid)
-                                    .stroke("#07a125"),
-                            ),
-                        ),
+                        utils::line::LineStatus::Harvesting,
                     ) {
                         Ok(_) => {}
                         Err(e) => {
@@ -107,10 +117,96 @@ impl<'a> Harverster<'a> {
             }
             // 资源不存在
             None => {
-                self.status = HarversterStatus::SourceNotfound;
+                warn!("source not found");
+                self.ctx.status = CreepSourceStatus::SourceNotfound;
                 return Ok(());
             }
         }
+        Ok(())
+    }
+
+    pub fn consume(&mut self) -> Result<(), ErrorCode> {
+        if self.ctx.status != CreepSourceStatus::Building {
+            return Ok(());
+        }
+
+        // 建造建筑
+        if let Some(site) = utils::find::find_site(&self.room) {
+            match self.creep.build(&site) {
+                Ok(_) => return Ok(()),
+                Err(e) => match e {
+                    ErrorCode::NotInRange => {
+                        match utils::line::route_option(
+                            &mut self.creep,
+                            &site,
+                            utils::line::LineStatus::Building,
+                        ) {
+                            Ok(_) => {
+                                return Ok(());
+                            }
+                            Err(e) => {
+                                warn!("{:?}", e);
+                                return Err(e);
+                            }
+                        }
+                    }
+                    _ => {
+                        warn!("{:?}", e);
+                        return Err(e);
+                    }
+                },
+            }
+        };
+
+        // 填充容器
+        if let Some(store) = utils::find::find_store(self.creep, &self.room, true) {
+            match utils::line::route_option(
+                &mut self.creep,
+                &store.as_structure(),
+                utils::line::LineStatus::Storing,
+            ) {
+                Ok(_) => return Ok(()),
+                Err(e) => {
+                    warn!("{:?}", e);
+                    return Err(e);
+                }
+            }
+        }
+
+        if let Some(controller) = utils::find::find_controller(&self.room) {
+            let controller = match controller.resolve() {
+                Some(controller) => controller,
+                None => {
+                    warn!("not found");
+                    return Ok(());
+                }
+            };
+            match self.creep.upgrade_controller(&controller) {
+                Ok(_) => {}
+                Err(e) => match e {
+                    ErrorCode::NotInRange => {
+                        match utils::line::route_option(
+                            &mut self.creep,
+                            &controller,
+                            utils::line::LineStatus::Building,
+                        ) {
+                            Ok(_) => {
+                                return Ok(());
+                            }
+                            Err(e) => {
+                                warn!("{:?}", e);
+                                return Err(e);
+                            }
+                        }
+                    }
+                    _ => {
+                        warn!("{:?}", e);
+                        return Err(e);
+                    }
+                },
+            }
+        };
+
         Ok(())
     }
 }
