@@ -1,0 +1,26 @@
+{
+  "room_id": "E45N58",
+  "creeps_info": {
+    "room_id": "E45N58",
+    "harvester": 4,
+    "upgrader": 11,
+    "creep_map": {
+      "52922198-0": "Upgrader",
+      "52921698-0": "Upgrader",
+      "52920448-0": "Harvester",
+      "52921198-0": "Upgrader",
+      "52921948-0": "Harvester",
+      "52920698-0": "Upgrader",
+      "52922448-0": "Upgrader",
+      "52920954-0": "Upgrader",
+      "52921448-0": "Upgrader"
+    }
+  },
+  "source_info": {
+    "room_id": "E45N58",
+    "source_map": {
+      "5bbcaf9f9099fc012e63ae7f": ["52921448-0"],
+      "5bbcaf9f9099fc012e63ae7d": ["52921448-0"]
+    }
+  }
+}

@@ -3,7 +3,7 @@ use screeps::{Creep, ErrorCode, HasPosition, MoveToOptions, PolyStyle, SharedCre
 pub enum LineStatus {
     Harvesting,
     Building,
-    Storing,
+    Carry,
 }
 
 impl LineStatus {
@@ -11,7 +11,7 @@ impl LineStatus {
         match self {
             LineStatus::Harvesting => "#34c724",
             LineStatus::Building => "#fff258",
-            LineStatus::Storing => "#39a1e8",
+            LineStatus::Carry => "#39a1e8",
         }
     }
 }

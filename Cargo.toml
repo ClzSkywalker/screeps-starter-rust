@@ -24,6 +24,9 @@ serde_json = "1.0"
 
 # 枚举转字符串
 strum = { version = "0.25", features = ["derive"] }
+# error
+anyhow = "1.0"
+thiserror = "1.0.50"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

@@ -2,21 +2,28 @@ use serde::{Deserialize, Serialize};
 use strum::EnumString;
 
 pub mod builder;
-pub mod harvester;
 pub mod carrier;
-pub mod upgrade_controller;
+pub mod harvester;
+pub mod upgrader;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, EnumString, strum::Display)]
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    EnumString,
+    strum::Display,
+)]
 pub enum RoleEnum {
+    #[default]
     Harvester,
-    UpgradeController,
+    Upgrader,
     Builder,
     // 搬运工
     Porter,
-}
-
-impl Default for RoleEnum {
-    fn default() -> Self {
-        RoleEnum::Harvester
-    }
 }
