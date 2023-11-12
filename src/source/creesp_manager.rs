@@ -146,10 +146,10 @@ impl RoomScreepsItem {
     }
 
     pub fn next_role(&self) -> RoleEnum {
-        if self.harvester < 2 {
+        if self.harvester < 4 {
             return RoleEnum::Harvester;
         }
-        if self.harvester * 3 > self.upgrader {
+        if self.upgrader < self.harvester * 3 {
             RoleEnum::Upgrader
         } else {
             RoleEnum::Harvester

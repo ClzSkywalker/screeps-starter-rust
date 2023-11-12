@@ -58,7 +58,7 @@ impl SourceManager {
             if creep_ids.contains(&creep.name().to_string()) {
                 return Some(source.id());
             }
-            if !creep_ids.is_empty() {
+            if creep_ids.len() >= 2 {
                 continue;
             }
             source_list.push(source.clone());

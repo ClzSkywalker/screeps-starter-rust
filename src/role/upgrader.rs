@@ -1,5 +1,7 @@
 use log::*;
 
+use crate::utils::errorx::ScreepError;
+
 use super::{action::CreepAction, creep::CreepProp};
 
 pub struct Upgrader {
@@ -33,20 +35,69 @@ impl Upgrader {
 
         self.say();
 
-        self.set_status();
-
-        if let Err(e) = self.carry_up() {
+        if let Err(e) = self.work_line() {
             warn!("{:?}", e);
             return Err(e);
-        };
-
-        if let Err(e) = self.upgrade() {
-            warn!("{:?}", e);
-            return Err(e);
-        };
-
+        }
         self.set_memory();
 
+        Ok(())
+    }
+
+    fn work_line(&mut self) -> anyhow::Result<()> {
+        match self.carry_up() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
+        match self.harveste() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
+        match self.upgrade() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
+        match self.build() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
+        info!(
+            "{}",
+            ScreepError::RoleCanNotWork(self.creep.ctx.role.to_string())
+        );
         Ok(())
     }
 }

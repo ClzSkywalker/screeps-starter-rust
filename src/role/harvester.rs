@@ -53,7 +53,7 @@ impl Harvester {
             }
         }
 
-        match self.build() {
+        match self.store() {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
@@ -65,7 +65,7 @@ impl Harvester {
             }
         }
 
-        match self.store() {
+        match self.build() {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
@@ -88,7 +88,11 @@ impl Harvester {
                 return Err(e);
             }
         }
-
-        Err(ScreepError::RoleCanNotWork(self.creep.ctx.role.to_string()).into())
+        info!(
+            "{}",
+            ScreepError::RoleCanNotWork(self.creep.ctx.role.to_string())
+        );
+        Ok(())
+        // Err(ScreepError::RoleCanNotWork(self.creep.ctx.role.to_string()).into())
     }
 }

@@ -41,13 +41,13 @@ pub trait CreepAction {
 
     fn set_status(&mut self) {
         let prop = self.get_creep_mut();
+        prop.ctx.store_status = StoreStatus::new(&prop.creep);
         match prop.ctx.role {
             super::RoleEnum::Harvester => {
                 match prop.ctx.store_status {
                     StoreStatus::Empty => {
                         prop.ctx.status = CreepStatus::Harversting;
                     }
-
                     StoreStatus::Full => {
                         prop.ctx.status = CreepStatus::Building;
                     }
@@ -113,9 +113,7 @@ pub trait CreepAction {
                             &site,
                             utils::line::LineStatus::Harvesting,
                         ) {
-                            Ok(_) => {
-                                 Ok(Some(()))
-                            }
+                            Ok(_) => Ok(Some(())),
                             Err(e) => {
                                 warn!("{:?}", e);
                                 Err(ScreepError::ScreepInner.into())
@@ -173,7 +171,7 @@ pub trait CreepAction {
                 },
             }
         };
-        Err(ScreepError::RoleCanNotWork(prop.ctx.role.to_string()).into())
+        Ok(None)
     }
 
     fn upgrade_check(&self) -> bool {
@@ -218,7 +216,7 @@ pub trait CreepAction {
                 }
             }
         };
-        Err(ScreepError::RoleCanNotWork(prop.ctx.role.to_string()).into())
+        Ok(None)
     }
 
     fn store_check(&self) -> bool {
@@ -233,10 +231,8 @@ pub trait CreepAction {
         let prop = self.get_creep_mut();
         if let Some(store) = utils::find::find_store(&prop.creep, &prop.room, true) {
             if let Some(transfer) = store.as_transferable() {
-                // info!("transfer");
                 match prop.creep.transfer(transfer, ResourceType::Energy, None) {
                     Ok(_) => {
-                        // info!("transfer2");
                         return Ok(Some(()));
                     }
                     Err(e) => match e {
@@ -247,7 +243,6 @@ pub trait CreepAction {
                                 utils::line::LineStatus::Building,
                             ) {
                                 Ok(_) => {
-                                    // info!("transfer1");
                                     return Ok(Some(()));
                                 }
                                 Err(e) => {
@@ -264,7 +259,7 @@ pub trait CreepAction {
                 }
             }
         }
-        Err(ScreepError::RoleCanNotWork(prop.ctx.role.to_string()).into())
+        Ok(None)
     }
 
     fn carry_up_check(&self) -> bool {
@@ -281,9 +276,7 @@ pub trait CreepAction {
         }
         let prop = self.get_creep_mut();
         if let Some(structure) = utils::find::find_store(&prop.creep, &prop.room, false) {
-            info!("t2");
             if let Some(store) = structure.as_withdrawable() {
-                info!("t3");
                 match prop.creep.withdraw(store, ResourceType::Energy, None) {
                     Ok(_) => return Ok(Some(())),
                     Err(e) => match e {

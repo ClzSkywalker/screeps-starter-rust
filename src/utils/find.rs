@@ -30,7 +30,7 @@ pub fn find_controller(room: &Room) -> Option<ObjectId<StructureController>> {
 // status true有空间，false有存储
 pub fn find_store(creep: &Creep, room: &Room, status: bool) -> Option<StructureObject> {
     let mut structure_list: Vec<StructureObject> = Vec::new();
-    for structure in room.find(find::MY_STRUCTURES, None).iter() {
+    for structure in room.find(find::STRUCTURES, None).iter() {
         if let Some(store1) = structure.as_has_store() {
             if (status && store1.store().get_free_capacity(None) == 0)
                 || (!status && store1.store().get_used_capacity(None) == 0)
