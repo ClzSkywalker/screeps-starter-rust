@@ -2,7 +2,8 @@ use std::str::FromStr;
 
 use screeps::{
     find, game, pathfinder::SingleRoomCostResult, prelude::*, ConstructionSite, Creep,
-    FindPathOptions, ObjectId, Path, Room, RoomName, Source, StructureController, StructureObject,
+    FindPathOptions, ObjectId, Path, ResourceType, Room, RoomName, Source, StructureController,
+    StructureObject, StructureType,
 };
 
 use super::errorx::ScreepError;
@@ -28,13 +29,31 @@ pub fn find_controller(room: &Room) -> Option<ObjectId<StructureController>> {
 }
 
 // status true有空间，false有存储
-pub fn find_store(creep: &Creep, room: &Room, status: bool) -> Option<StructureObject> {
+// withdraw: 是否包含可拾取条件
+pub fn find_store(
+    creep: &Creep,
+    room: &Room,
+    resource_type: Option<ResourceType>,
+    status: bool,
+    withdraw: bool,
+    tmp: bool,
+) -> Option<StructureObject> {
     let mut structure_list: Vec<StructureObject> = Vec::new();
     for structure in room.find(find::STRUCTURES, None).iter() {
+        if !structure.is_active()
+            || (tmp && structure.structure_type() == StructureType::Spawn)
+            || (tmp && structure.structure_type() == StructureType::Extension)
+        {
+            continue;
+        }
         if let Some(store1) = structure.as_has_store() {
-            if (status && store1.store().get_free_capacity(None) == 0)
-                || (!status && store1.store().get_used_capacity(None) == 0)
+            if (status && store1.store().get_free_capacity(resource_type) == 0)
+                || (!status && store1.store().get_used_capacity(resource_type) == 0)
             {
+                continue;
+            }
+            if !withdraw {
+                structure_list.push(structure.clone());
                 continue;
             }
             if structure.as_withdrawable().is_some() {

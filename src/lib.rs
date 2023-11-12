@@ -2,7 +2,7 @@ use global::{MEMORY_MANAGER, SCREEP_MANAGER, SOURCE_MANAGER};
 use log::*;
 use model::ctx::CreepMemory;
 
-use role::{creep::CreepProp, RoleEnum};
+use role::{creep::CreepProp, RoleAction};
 use screeps::{constants::Part, game, prelude::*};
 use wasm_bindgen::prelude::*;
 
@@ -24,7 +24,7 @@ pub fn setup() {
 pub fn game_loop() {
     global::init_global();
     global::clean_memory();
-    
+
     MEMORY_MANAGER.with(|manager| {
         let mut manager = manager.borrow_mut();
         manager.check();
@@ -45,50 +45,11 @@ pub fn game_loop() {
 
         let creep_memory: CreepMemory = SCREEP_MANAGER.with(|manager| {
             let mut manager = manager.borrow_mut();
-            match creep.memory().as_string() {
-                Some(r) => {
-                    let c: CreepMemory = match serde_json::from_str(&r) {
-                        Ok(r) => r,
-                        Err(e) => {
-                            warn!("{:?}", e);
-                            match manager.add_screep(creep.clone()) {
-                                Some(r) => r,
-                                None => CreepMemory::new(&creep),
-                            }
-                        }
-                    };
-                    c
-                }
-                None => match manager.add_screep(creep.clone()) {
-                    Some(r) => r,
-                    None => CreepMemory::new(&creep),
-                },
-            }
+            manager.create_creep_memory(&creep)
         });
 
-        let prop = CreepProp::new(creep, creep_memory.clone());
-
-        match creep_memory.role {
-            RoleEnum::Harvester => {
-                let mut item = role::harvester::Harvester::new(prop);
-                match item.run() {
-                    Ok(_) => {}
-                    Err(e) => {
-                        warn!("{:?}", e);
-                    }
-                };
-            }
-            RoleEnum::Upgrader => {
-                let mut item = role::upgrader::Upgrader::new(prop);
-                match item.run() {
-                    Ok(_) => {}
-                    Err(e) => {
-                        warn!("{:?}", e);
-                    }
-                };
-            }
-            _ => {}
-        }
+        let role = RoleAction::new(CreepProp::new(creep, creep_memory));
+        role.run();
     }
     let mut additional = 0;
     for spawn in game::spawns().values() {
@@ -100,7 +61,8 @@ pub fn game_loop() {
         if !spawing {
             continue;
         }
-        let body = [Part::Move, Part::Move, Part::Carry, Part::Work];
+        let body = [Part::Move, Part::Carry, Part::Work, Part::Work];
+
         if spawn.room().unwrap().energy_available() >= body.iter().map(|p| p.cost()).sum() {
             // create a unique name, spawn.
             let name_base = game::time();

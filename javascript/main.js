@@ -10,6 +10,12 @@ function console_error(...args) {
 }
 
 module.exports.loop = function () {
+    // 用于清除内存中消失的creep
+    for (var name in Memory.creeps){
+        if(!Game.creeps[name]){
+            delete Memory.creeps[name];
+        }
+    }
     try {
         if (wasm_module) {
             wasm_module.loop();

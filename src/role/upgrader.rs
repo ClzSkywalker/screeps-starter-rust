@@ -2,13 +2,13 @@ use log::*;
 
 use crate::utils::errorx::ScreepError;
 
-use super::{action::CreepAction, creep::CreepProp};
+use super::{action::ICreepAction, creep::CreepProp, IRoleAction};
 
 pub struct Upgrader {
     pub creep: CreepProp,
 }
 
-impl CreepAction for Upgrader {
+impl ICreepAction for Upgrader {
     fn get_creep(&self) -> &CreepProp {
         &self.creep
     }
@@ -18,30 +18,9 @@ impl CreepAction for Upgrader {
     }
 }
 
-impl Upgrader {
-    // pub fn role() -> RoleEnum {
-    //     return RoleEnum::Upgrader;
-    // }
-    pub fn new(creep: CreepProp) -> Upgrader {
+impl IRoleAction for Upgrader {
+    fn new(creep: CreepProp) -> Upgrader {
         Upgrader { creep }
-    }
-
-    pub fn run(&mut self) -> anyhow::Result<()> {
-        if !self.check() {
-            return Ok(());
-        }
-
-        self.set_status();
-
-        self.say();
-
-        if let Err(e) = self.work_line() {
-            warn!("{:?}", e);
-            return Err(e);
-        }
-        self.set_memory();
-
-        Ok(())
     }
 
     fn work_line(&mut self) -> anyhow::Result<()> {

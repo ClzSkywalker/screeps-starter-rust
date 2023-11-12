@@ -2,13 +2,13 @@ use log::*;
 
 use crate::utils::errorx::ScreepError;
 
-use super::{action::CreepAction, creep::CreepProp};
+use super::{action::ICreepAction, creep::CreepProp, IRoleAction};
 
 pub struct Harvester {
     pub creep: CreepProp,
 }
 
-impl CreepAction for Harvester {
+impl ICreepAction for Harvester {
     fn get_creep(&self) -> &CreepProp {
         &self.creep
     }
@@ -18,26 +18,9 @@ impl CreepAction for Harvester {
     }
 }
 
-impl Harvester {
-    pub fn new(creep: CreepProp) -> Harvester {
+impl IRoleAction for Harvester {
+    fn new(creep: CreepProp) -> Harvester {
         Harvester { creep }
-    }
-
-    pub fn run(&mut self) -> anyhow::Result<()> {
-        if !self.check() {
-            return Ok(());
-        }
-
-        self.set_status();
-
-        self.say();
-        if let Err(e) = self.work_line() {
-            warn!("{:?}", e);
-            return Err(e);
-        }
-        self.set_memory();
-
-        Ok(())
     }
 
     fn work_line(&mut self) -> anyhow::Result<()> {
@@ -93,6 +76,5 @@ impl Harvester {
             ScreepError::RoleCanNotWork(self.creep.ctx.role.to_string())
         );
         Ok(())
-        // Err(ScreepError::RoleCanNotWork(self.creep.ctx.role.to_string()).into())
     }
 }

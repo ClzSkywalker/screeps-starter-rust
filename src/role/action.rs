@@ -10,7 +10,7 @@ use crate::{
 
 use super::creep::CreepProp;
 
-pub trait CreepAction {
+pub trait ICreepAction {
     fn get_creep(&self) -> &CreepProp;
     fn get_creep_mut(&mut self) -> &mut CreepProp;
 
@@ -65,7 +65,18 @@ pub trait CreepAction {
                     _ => {}
                 };
             }
-            super::RoleEnum::Builder => todo!(),
+            super::RoleEnum::Builder => {
+                match prop.ctx.store_status {
+                    StoreStatus::Empty => {
+                        prop.ctx.status = CreepStatus::CarryUp;
+                    }
+                    StoreStatus::Full => {
+                        prop.ctx.status = CreepStatus::Building;
+                    }
+
+                    _ => {}
+                };
+            }
             super::RoleEnum::Porter => todo!(),
         }
     }
@@ -229,7 +240,14 @@ pub trait CreepAction {
             return Ok(None);
         }
         let prop = self.get_creep_mut();
-        if let Some(store) = utils::find::find_store(&prop.creep, &prop.room, true) {
+        if let Some(store) = utils::find::find_store(
+            &prop.creep,
+            &prop.room,
+            Some(ResourceType::Energy),
+            true,
+            false,
+            false,
+        ) {
             if let Some(transfer) = store.as_transferable() {
                 match prop.creep.transfer(transfer, ResourceType::Energy, None) {
                     Ok(_) => {
@@ -275,7 +293,14 @@ pub trait CreepAction {
             return Ok(None);
         }
         let prop = self.get_creep_mut();
-        if let Some(structure) = utils::find::find_store(&prop.creep, &prop.room, false) {
+        if let Some(structure) = utils::find::find_store(
+            &prop.creep,
+            &prop.room,
+            Some(ResourceType::Energy),
+            false,
+            true,
+            true,
+        ) {
             if let Some(store) = structure.as_withdrawable() {
                 match prop.creep.withdraw(store, ResourceType::Energy, None) {
                     Ok(_) => return Ok(Some(())),
