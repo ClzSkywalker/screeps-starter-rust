@@ -1,5 +1,7 @@
 use log::*;
 
+use crate::utils::errorx::ScreepError;
+
 use super::{action::CreepAction, creep::CreepProp};
 
 pub struct Harvester {
@@ -29,29 +31,64 @@ impl Harvester {
         self.set_status();
 
         self.say();
-
-        if let Err(e) = self.harveste() {
+        if let Err(e) = self.work_line() {
             warn!("{:?}", e);
             return Err(e);
-        };
-
-        if let Err(e) = self.build() {
-            warn!("{:?}", e);
-            return Err(e);
-        };
-
-        if let Err(e) = self.store() {
-            warn!("{:?}", e);
-            return Err(e);
-        };
-
-        if let Err(e) = self.upgrade() {
-            warn!("{:?}", e);
-            return Err(e);
-        };
-
+        }
         self.set_memory();
 
         Ok(())
+    }
+
+    fn work_line(&mut self) -> anyhow::Result<()> {
+        match self.harveste() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
+        match self.build() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
+        match self.store() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
+        match self.upgrade() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
+        Err(ScreepError::RoleCanNotWork(self.creep.ctx.role.to_string()).into())
     }
 }

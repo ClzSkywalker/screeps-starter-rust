@@ -43,7 +43,6 @@ pub trait CreepAction {
         let prop = self.get_creep_mut();
         match prop.ctx.role {
             super::RoleEnum::Harvester => {
-                prop.ctx.store_status = StoreStatus::new(&prop.creep);
                 match prop.ctx.store_status {
                     StoreStatus::Empty => {
                         prop.ctx.status = CreepStatus::Harversting;
@@ -55,7 +54,17 @@ pub trait CreepAction {
                     _ => {}
                 };
             }
-            super::RoleEnum::Upgrader => todo!(),
+            super::RoleEnum::Upgrader => {
+                match prop.ctx.store_status {
+                    StoreStatus::Empty => {
+                        prop.ctx.status = CreepStatus::CarryUp;
+                    }
+                    StoreStatus::Full => {
+                        prop.ctx.status = CreepStatus::Building;
+                    }
+                    _ => {}
+                };
+            }
             super::RoleEnum::Builder => todo!(),
             super::RoleEnum::Porter => todo!(),
         }
@@ -71,9 +80,9 @@ pub trait CreepAction {
     }
 
     // 收割
-    fn harveste(&mut self) -> anyhow::Result<()> {
+    fn harveste(&mut self) -> anyhow::Result<Option<()>> {
         if !self.harveste_check() {
-            return Ok(());
+            return Ok(None);
         }
         let prop = self.get_creep_mut();
         let source = SOURCE_MANAGER.with(|manager| {
@@ -89,13 +98,14 @@ pub trait CreepAction {
         let source = match source {
             Some(r) => r,
             None => {
+                warn!("{}", ScreepError::StructureNotfound("source".to_string()));
                 return Err(ScreepError::StructureNotfound("source".to_string()).into());
             }
         };
 
         match source.resolve() {
             Some(site) => match prop.creep.harvest(&site) {
-                Ok(_) => {}
+                Ok(_) => Ok(Some(())),
                 Err(e) => match e {
                     ErrorCode::NotInRange => {
                         match utils::line::route_option(
@@ -104,25 +114,25 @@ pub trait CreepAction {
                             utils::line::LineStatus::Harvesting,
                         ) {
                             Ok(_) => {
-                                return Ok(());
+                                 Ok(Some(()))
                             }
                             Err(e) => {
                                 warn!("{:?}", e);
-                                return Err(ScreepError::ScreepInner.into());
+                                Err(ScreepError::ScreepInner.into())
                             }
                         }
                     }
                     _ => {
                         warn!("{:?}", e);
-                        return Err(ScreepError::ScreepInner.into());
+                        Err(ScreepError::ScreepInner.into())
                     }
                 },
             },
             None => {
-                return Err(ScreepError::RoleCanNotWork(source.to_string()).into());
+                warn!("{}", ScreepError::StructureNotfound("source".to_string()));
+                Err(ScreepError::RoleCanNotWork(source.to_string()).into())
             }
         }
-        Err(ScreepError::RoleCanNotWork(prop.ctx.role.to_string()).into())
     }
 
     // 收割检测
@@ -132,14 +142,14 @@ pub trait CreepAction {
     }
 
     // 建造
-    fn build(&mut self) -> anyhow::Result<()> {
+    fn build(&mut self) -> anyhow::Result<Option<()>> {
         if !self.build_check() {
-            return Ok(());
+            return Ok(None);
         }
         let prop = self.get_creep_mut();
         if let Some(site) = utils::find::find_site(&prop.creep, &prop.room) {
             match prop.creep.build(&site) {
-                Ok(_) => return Ok(()),
+                Ok(_) => return Ok(Some(())),
                 Err(e) => match e {
                     ErrorCode::NotInRange => {
                         match utils::line::route_option(
@@ -148,7 +158,7 @@ pub trait CreepAction {
                             utils::line::LineStatus::Building,
                         ) {
                             Ok(_) => {
-                                return Ok(());
+                                return Ok(Some(()));
                             }
                             Err(e) => {
                                 warn!("{:?}", e);
@@ -171,15 +181,15 @@ pub trait CreepAction {
         matches!(prop.ctx.status, CreepStatus::Building)
     }
 
-    fn upgrade(&mut self) -> anyhow::Result<()> {
+    fn upgrade(&mut self) -> anyhow::Result<Option<()>> {
         if !self.upgrade_check() {
-            return Ok(());
+            return Ok(None);
         }
         let prop = self.get_creep_mut();
         if let Some(site) = utils::find::find_controller(&prop.room) {
             match site.resolve() {
                 Some(controller) => match prop.creep.upgrade_controller(&controller) {
-                    Ok(_) => return Ok(()),
+                    Ok(_) => return Ok(Some(())),
                     Err(e) => match e {
                         ErrorCode::NotInRange => {
                             match utils::line::route_option(
@@ -188,7 +198,7 @@ pub trait CreepAction {
                                 utils::line::LineStatus::Building,
                             ) {
                                 Ok(_) => {
-                                    return Ok(());
+                                    return Ok(Some(()));
                                 }
                                 Err(e) => {
                                     warn!("{:?}", e);
@@ -216,9 +226,9 @@ pub trait CreepAction {
         matches!(prop.ctx.status, CreepStatus::Building)
     }
 
-    fn store(&mut self) -> anyhow::Result<()> {
+    fn store(&mut self) -> anyhow::Result<Option<()>> {
         if !self.store_check() {
-            return Ok(());
+            return Ok(None);
         }
         let prop = self.get_creep_mut();
         if let Some(store) = utils::find::find_store(&prop.creep, &prop.room, true) {
@@ -227,7 +237,7 @@ pub trait CreepAction {
                 match prop.creep.transfer(transfer, ResourceType::Energy, None) {
                     Ok(_) => {
                         // info!("transfer2");
-                        return Ok(());
+                        return Ok(Some(()));
                     }
                     Err(e) => match e {
                         ErrorCode::NotInRange => {
@@ -238,7 +248,7 @@ pub trait CreepAction {
                             ) {
                                 Ok(_) => {
                                     // info!("transfer1");
-                                    return Ok(());
+                                    return Ok(Some(()));
                                 }
                                 Err(e) => {
                                     warn!("{:?}", e);
@@ -265,9 +275,9 @@ pub trait CreepAction {
         )
     }
 
-    fn carry_up(&mut self) -> anyhow::Result<()> {
+    fn carry_up(&mut self) -> anyhow::Result<Option<()>> {
         if !self.carry_up_check() {
-            return Ok(());
+            return Ok(None);
         }
         let prop = self.get_creep_mut();
         if let Some(structure) = utils::find::find_store(&prop.creep, &prop.room, false) {
@@ -275,7 +285,7 @@ pub trait CreepAction {
             if let Some(store) = structure.as_withdrawable() {
                 info!("t3");
                 match prop.creep.withdraw(store, ResourceType::Energy, None) {
-                    Ok(_) => {}
+                    Ok(_) => return Ok(Some(())),
                     Err(e) => match e {
                         ErrorCode::NotInRange => {
                             match utils::line::route_option(
@@ -283,7 +293,7 @@ pub trait CreepAction {
                                 &structure.as_structure(),
                                 utils::line::LineStatus::Carry,
                             ) {
-                                Ok(_) => return Ok(()),
+                                Ok(_) => return Ok(Some(())),
                                 Err(e) => {
                                     warn!("{:?}", e);
                                     return Err(ScreepError::ScreepInner.into());
@@ -299,6 +309,6 @@ pub trait CreepAction {
             };
         };
 
-        Ok(())
+        Err(ScreepError::RoleCanNotWork(prop.ctx.role.to_string()).into())
     }
 }

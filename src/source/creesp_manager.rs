@@ -5,7 +5,7 @@ use screeps::{game, Creep, RoomName, SharedCreepProperties};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
 
-use crate::{model::ctx::CreepMemory, role::RoleEnum};
+use crate::{model::ctx::CreepMemory, role::RoleEnum, utils};
 
 // creep 管理器
 #[derive(Debug, Default)]
@@ -132,8 +132,7 @@ impl RoomScreepsItem {
 
     // 检测creep是否还存在
     pub fn check(&mut self) {
-        self.creep_map
-            .retain(|x, _| game::creeps().get(x.to_string()).is_some());
+        self.creep_map.retain(|x, _| utils::check_creep(x.clone()));
         self.harvester = self
             .creep_map
             .values()
