@@ -2,7 +2,7 @@ use global::{MEMORY_MANAGER, SCREEP_MANAGER, SOURCE_MANAGER};
 use log::*;
 use model::ctx::CreepMemory;
 
-use role::RoleEnum;
+use role::{creep::CreepProp, RoleEnum};
 use screeps::{constants::Part, game, prelude::*};
 use wasm_bindgen::prelude::*;
 
@@ -23,6 +23,8 @@ pub fn setup() {
 #[wasm_bindgen(js_name = loop)]
 pub fn game_loop() {
     global::init_global();
+    global::clean_memory();
+    
     MEMORY_MANAGER.with(|manager| {
         let mut manager = manager.borrow_mut();
         manager.check();
@@ -64,10 +66,12 @@ pub fn game_loop() {
             }
         });
 
+        let prop = CreepProp::new(creep, creep_memory.clone());
+
         match creep_memory.role {
             RoleEnum::Harvester => {
-                let mut har = role::harvester::Harvester::new(&creep, creep_memory.clone());
-                match har.run() {
+                let mut item = role::harvester::Harvester::new(prop);
+                match item.run() {
                     Ok(_) => {}
                     Err(e) => {
                         warn!("{:?}", e);
@@ -75,8 +79,8 @@ pub fn game_loop() {
                 };
             }
             RoleEnum::Upgrader => {
-                let mut har = role::upgrader::Upgrader::new(&creep, creep_memory.clone());
-                match har.run() {
+                let mut item = role::upgrader::Upgrader::new(prop);
+                match item.run() {
                     Ok(_) => {}
                     Err(e) => {
                         warn!("{:?}", e);
@@ -93,7 +97,7 @@ pub fn game_loop() {
             let manager = manager.borrow();
             spawing = manager.can_spawing(spawn.room().unwrap().name().to_string());
         });
-        if spawing {
+        if !spawing {
             continue;
         }
         let body = [Part::Move, Part::Move, Part::Carry, Part::Work];

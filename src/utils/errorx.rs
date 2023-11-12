@@ -3,6 +3,10 @@ use thiserror::Error;
 pub enum ScreepError {
     #[error("room notfound: {0}")]
     RoomNotfound(String),
-    #[error("unknown data store error")]
-    Unknown,
+    #[error("role can not: {0}")]
+    RoleCanNotWork(String),
+    #[error("structure notfound: {0}")]
+    StructureNotfound(String),
+    #[error("screep 内部错误")]
+    ScreepInner,
 }

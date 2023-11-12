@@ -1,5 +1,6 @@
 use std::cell::{OnceCell, RefCell};
 
+use log::warn;
 use screeps::game;
 
 use crate::source::{
@@ -31,6 +32,21 @@ pub fn init_global() {
             init_manager();
         });
     });
+}
+
+pub fn clean_memory() {
+    for ele in screeps::game::creeps().values() {
+        if let Some(live) = ele.ticks_to_live() {
+            if live <= 1 {
+                match ele.suicide() {
+                    Ok(_) => {}
+                    Err(e) => {
+                        warn!("{:?}", e);
+                    }
+                };
+            }
+        }
+    }
 }
 
 pub fn init_manager() {

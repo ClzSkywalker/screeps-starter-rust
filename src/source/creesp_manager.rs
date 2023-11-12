@@ -67,8 +67,8 @@ impl ScreepManager {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct RoomScreepsItem {
     pub room_id: String,
-    pub harvester: i32,
-    pub upgrader: i32,
+    pub harvester: usize,
+    pub upgrader: usize,
     // 管理id
     pub creep_map: HashMap<String, RoleEnum>,
 }
@@ -132,17 +132,18 @@ impl RoomScreepsItem {
 
     // 检测creep是否还存在
     pub fn check(&mut self) {
-        let mut res: HashMap<RoleEnum, Vec<String>> = HashMap::new();
-        for (id, role) in self.creep_map.iter() {
-            if game::creeps().get(id.to_string()).is_some() {
-                continue;
-            }
-            if let Some(value) = res.get_mut(role) {
-                // value.push(id.to_string());
-                value.retain(|x| x != id);
-                continue;
-            };
-        }
+        self.creep_map
+            .retain(|x, _| game::creeps().get(x.to_string()).is_some());
+        self.harvester = self
+            .creep_map
+            .values()
+            .filter(|x| **x == RoleEnum::Harvester)
+            .count();
+        self.upgrader = self
+            .creep_map
+            .values()
+            .filter(|x| **x == RoleEnum::Upgrader)
+            .count();
     }
 
     pub fn next_role(&self) -> RoleEnum {
