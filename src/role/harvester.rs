@@ -1,6 +1,6 @@
 use log::*;
 
-use crate::utils::errorx::ScreepError;
+use crate::utils::{errorx::ScreepError, find};
 
 use super::{action::ICreepAction, creep::CreepProp, IRoleAction};
 
@@ -19,7 +19,7 @@ impl ICreepAction for Harvester {
 }
 
 impl IRoleAction for Harvester {
-    fn new(creep: CreepProp) -> Harvester {
+    fn new(creep: CreepProp) -> impl IRoleAction {
         Harvester { creep }
     }
 
@@ -36,7 +36,7 @@ impl IRoleAction for Harvester {
             }
         }
 
-        match self.store() {
+        match self.store(Some(find::FindStoreOption::harvester_build())) {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
@@ -78,3 +78,4 @@ impl IRoleAction for Harvester {
         Ok(())
     }
 }
+

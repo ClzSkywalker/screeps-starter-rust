@@ -1,7 +1,7 @@
 use screeps::{Creep, SharedCreepProperties};
 use serde::{Deserialize, Serialize};
 
-use crate::role::RoleEnum;
+use crate::role::{creep::CreepProp, RoleEnum};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreepMemory {
@@ -74,3 +74,82 @@ pub enum CreepStatus {
     // 升级
     Upgrade,
 }
+
+impl CreepStatus {
+    /// 根据角色+能源存储状态=角色现在状态
+    ///
+    /// * `prop`:
+    pub fn check(prop: &mut CreepProp) {
+        match prop.ctx.role {
+            RoleEnum::Harvester => {
+                match prop.ctx.store_status {
+                    StoreStatus::Empty => {
+                        prop.ctx.status = CreepStatus::Harversting;
+                    }
+                    StoreStatus::Full => {
+                        prop.ctx.status = CreepStatus::Building;
+                    }
+                    _ => {
+                        if !matches!(
+                            prop.ctx.status,
+                            CreepStatus::Harversting | CreepStatus::Building
+                        ) {
+                            prop.ctx.status = CreepStatus::Harversting;
+                        }
+                    }
+                };
+            }
+            RoleEnum::Upgrader => {
+                match prop.ctx.store_status {
+                    StoreStatus::Empty => {
+                        prop.ctx.status = CreepStatus::CarryUp;
+                    }
+                    StoreStatus::Full => {
+                        prop.ctx.status = CreepStatus::Building;
+                    }
+                    _ => {
+                        if !matches!(
+                            prop.ctx.status,
+                            CreepStatus::CarryUp | CreepStatus::Building
+                        ) {
+                            prop.ctx.status = CreepStatus::CarryUp;
+                        }
+                    }
+                };
+            }
+            RoleEnum::Builder => match prop.ctx.store_status {
+                StoreStatus::Empty => {
+                    prop.ctx.status = CreepStatus::CarryUp;
+                }
+                StoreStatus::Full => {
+                    prop.ctx.status = CreepStatus::Building;
+                }
+                _ => {
+                    if !matches!(
+                        prop.ctx.status,
+                        CreepStatus::CarryUp | CreepStatus::Building
+                    ) {
+                        prop.ctx.status = CreepStatus::CarryUp;
+                    }
+                }
+            },
+            RoleEnum::Porter => match prop.ctx.store_status {
+                StoreStatus::Empty => {
+                    prop.ctx.status = CreepStatus::CarryUp;
+                }
+                StoreStatus::Full => {
+                    prop.ctx.status = CreepStatus::CarryDown;
+                }
+                _ => {
+                    if !matches!(
+                        prop.ctx.status,
+                        CreepStatus::CarryUp | CreepStatus::CarryDown
+                    ) {
+                        prop.ctx.status = CreepStatus::CarryUp;
+                    }
+                }
+            },
+        }
+    }
+}
+

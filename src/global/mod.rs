@@ -1,4 +1,7 @@
-use std::cell::{OnceCell, RefCell};
+use std::{
+    cell::{OnceCell, RefCell},
+    collections::HashMap,
+};
 
 use log::warn;
 use screeps::game;
@@ -35,18 +38,18 @@ pub fn init_global() {
 }
 
 pub fn clean_memory() {
-    for ele in screeps::game::creeps().values() {
-        if let Some(live) = ele.ticks_to_live() {
-            if live <= 1 {
-                match ele.suicide() {
-                    Ok(_) => {}
-                    Err(e) => {
-                        warn!("{:?}", e);
-                    }
-                };
-            }
-        }
-    }
+    MEMORY_MANAGER.with(|memory_map| {
+        let mut manager = memory_map.borrow_mut();
+        manager.room_item = HashMap::default();
+        SCREEP_MANAGER.with(|manager| {
+            let mut manager = manager.borrow_mut();
+            manager.room_item = HashMap::default();
+        });
+        SOURCE_MANAGER.with(|manager| {
+            let mut manager = manager.borrow_mut();
+            manager.room_item = HashMap::default();
+        });
+    });
 }
 
 pub fn init_manager() {
@@ -73,3 +76,4 @@ pub fn init_manager() {
         });
     });
 }
+

@@ -19,7 +19,7 @@ impl ICreepAction for Builder {
 }
 
 impl IRoleAction for Builder {
-    fn new(creep: CreepProp) -> Builder {
+    fn new(creep: CreepProp) -> impl IRoleAction {
         Builder { creep }
     }
 
@@ -80,3 +80,4 @@ impl IRoleAction for Builder {
         Ok(())
     }
 }
+

@@ -23,7 +23,6 @@ pub fn setup() {
 #[wasm_bindgen(js_name = loop)]
 pub fn game_loop() {
     global::init_global();
-    global::clean_memory();
 
     MEMORY_MANAGER.with(|manager| {
         let mut manager = manager.borrow_mut();
@@ -45,11 +44,10 @@ pub fn game_loop() {
 
         let creep_memory: CreepMemory = SCREEP_MANAGER.with(|manager| {
             let mut manager = manager.borrow_mut();
-            manager.create_creep_memory(&creep)
+            manager.get_or_init_memory(&creep)
         });
 
-        let role = RoleAction::new(CreepProp::new(creep, creep_memory));
-        role.run();
+        RoleAction::new(CreepProp::new(creep, creep_memory)).run();
     }
     let mut additional = 0;
     for spawn in game::spawns().values() {
@@ -75,6 +73,7 @@ pub fn game_loop() {
             }
         }
     }
+    // global::clean_memory();
 
     SCREEP_MANAGER.with(|manager| {
         let screep_manager = manager.borrow();
@@ -103,3 +102,4 @@ pub fn game_loop() {
         });
     });
 }
+

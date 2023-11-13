@@ -5,7 +5,12 @@ use screeps::{game, Creep, RoomName, SharedCreepProperties};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
 
-use crate::{model::ctx::CreepMemory, role::RoleEnum, utils};
+use crate::{
+    global::SOURCE_MANAGER,
+    model::ctx::CreepMemory,
+    role::RoleEnum,
+    utils::{self, errorx::ScreepError},
+};
 
 // creep 管理器
 #[derive(Debug, Default)]
@@ -42,7 +47,9 @@ impl ScreepManager {
             .room_item
             .get_mut(&creep.room().unwrap().name().to_string())
         {
-            return Some(r.add_screep(creep));
+            if let Ok(r) = r.add_screep(creep) {
+                return Some(r);
+            }
         }
         None
     }
@@ -64,7 +71,7 @@ impl ScreepManager {
     }
 
     // 内存中存在则返回，否则进行创建初始化
-    pub fn create_creep_memory(&mut self, creep: &Creep) -> CreepMemory {
+    pub fn get_or_init_memory(&mut self, creep: &Creep) -> CreepMemory {
         match creep.memory().as_string() {
             Some(r) => {
                 let c: CreepMemory = match serde_json::from_str(&r) {
@@ -128,11 +135,15 @@ impl RoomScreepsItem {
                 Some(r) => {
                     if let Err(e) = serde_json::from_str::<CreepMemory>(r.as_str()) {
                         warn!("{:?},json:{}", e, r.as_str());
-                        self.add_screep(creep);
+                        if let Err(e) = self.add_screep(creep) {
+                            log::warn!("{:?}", e);
+                        }
                     };
                 }
                 None => {
-                    self.add_screep(creep);
+                    if let Err(e) = self.add_screep(creep) {
+                        log::warn!("{:?}", e);
+                    }
                 }
             };
         }
@@ -140,13 +151,13 @@ impl RoomScreepsItem {
     }
 
     // 添加creep
-    pub fn add_screep(&mut self, creep: Creep) -> CreepMemory {
-        let role = self.next_role();
+    pub fn add_screep(&mut self, creep: Creep) -> anyhow::Result<CreepMemory> {
+        let role = self.next_role()?;
         let mut c = CreepMemory::new(&creep);
         c.role = role;
         creep.set_memory(&JsValue::from_str(c.to_string().as_str()));
         self.add_count(&creep, role);
-        c
+        Ok(c)
     }
 
     // 检测creep是否还存在
@@ -169,22 +180,36 @@ impl RoomScreepsItem {
             .count();
     }
 
-    pub fn next_role(&self) -> RoleEnum {
-        if self.harvester < 4 {
-            return RoleEnum::Harvester;
-        }
-        if self.upgrader == 0 {
-            return RoleEnum::Upgrader;
+    pub fn next_role(&self) -> anyhow::Result<RoleEnum> {
+        let room_source_info = match SOURCE_MANAGER.with(|manager| {
+            let manager = manager.borrow();
+            match manager.get_memory(self.room_id.clone()) {
+                Some(r) => Ok(r),
+                None => {
+                    log::warn!("{}", ScreepError::RoomNotfound(self.room_id.clone()));
+                    Err(ScreepError::RoomNotfound(self.room_id.clone()))
+                }
+            }
+        }) {
+            Ok(r) => r,
+            Err(e) => return Err(e.into()),
+        };
+
+        if self.harvester < room_source_info.max_count {
+            return Ok(RoleEnum::Harvester);
         }
         if self.builder == 0 {
-            return RoleEnum::Builder;
+            return Ok(RoleEnum::Builder);
+        }
+        if self.upgrader == 0 {
+            return Ok(RoleEnum::Upgrader);
         }
         if self.upgrader < self.harvester * 2 {
-            RoleEnum::Upgrader
+            Ok(RoleEnum::Upgrader)
         } else if self.builder < self.harvester * 2 {
-            RoleEnum::Builder
+            Ok(RoleEnum::Builder)
         } else {
-            RoleEnum::Harvester
+            Ok(RoleEnum::Harvester)
         }
     }
 
@@ -198,3 +223,4 @@ impl RoomScreepsItem {
         self.creep_map.insert(creep.name().to_string(), role);
     }
 }
+

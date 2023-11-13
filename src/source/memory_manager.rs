@@ -67,7 +67,7 @@ impl RoomMemory {
         let mut room_screep = RoomScreepsItem::new(self.room_id.clone());
         let mut room_source = RoomSourceItem::new(self.room_id.clone());
         match room.memory().as_string() {
-            Some(memory_str) => match serde_json::from_str(memory_str.as_str()) {
+            Some(memory_str) => match serde_json::from_str("_") {
                 Ok(r) => {
                     let tmp: RoomMemory = r;
                     room_screep = tmp.creeps_info;
@@ -105,3 +105,4 @@ impl RoomMemory {
         }
     }
 }
+

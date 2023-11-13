@@ -6,14 +6,14 @@ use self::{action::ICreepAction, creep::CreepProp};
 
 pub mod action;
 pub mod builder;
-pub mod carrier;
 pub mod creep;
 pub mod harvester;
+pub mod porter;
 pub mod upgrader;
 
 pub trait IRoleAction: ICreepAction {
     // 创建实例
-    fn new(creep: CreepProp) -> Self;
+    fn new(creep: CreepProp) -> impl IRoleAction;
     // 工作线
     fn work_line(&mut self) -> anyhow::Result<()>;
     // 执行
@@ -64,6 +64,7 @@ pub enum RoleAction {
     Harvester(CreepProp),
     Upgrader(CreepProp),
     Builder(CreepProp),
+    Porter(CreepProp),
 }
 
 impl RoleAction {
@@ -72,11 +73,17 @@ impl RoleAction {
             RoleEnum::Harvester => RoleAction::Harvester(prop),
             RoleEnum::Upgrader => RoleAction::Upgrader(prop),
             RoleEnum::Builder => RoleAction::Builder(prop),
-            _ => RoleAction::Builder(prop),
+            RoleEnum::Porter => RoleAction::Porter(prop),
         }
     }
 
     pub fn run(&self) {
+        // match self {
+        //     RoleAction::Harvester(prop) => harvester::Harvester::new(prop.clone()),
+        //     RoleAction::Upgrader(prop) => upgrader::Upgrader::new(prop.clone()),
+        //     RoleAction::Builder(prop) => builder::Builder::new(prop.clone()),
+        // };
+
         match self {
             RoleAction::Harvester(prop) => {
                 let mut role = harvester::Harvester::new(prop.clone());
@@ -105,6 +112,16 @@ impl RoleAction {
                     }
                 };
             }
+            RoleAction::Porter(prop) => {
+                let mut role = porter::Porter::new(prop.clone());
+                match role.run() {
+                    Ok(_) => {}
+                    Err(e) => {
+                        warn!("{:?}", e);
+                    }
+                };
+            }
         };
     }
 }
+

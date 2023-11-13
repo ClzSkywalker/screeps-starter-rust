@@ -1,14 +1,15 @@
 use log::*;
 
-use crate::utils::errorx::ScreepError;
+use crate::utils::{errorx::ScreepError, find};
 
 use super::{action::ICreepAction, creep::CreepProp, IRoleAction};
 
-pub struct Upgrader {
+/// 搬运工
+pub struct Porter {
     pub creep: CreepProp,
 }
 
-impl ICreepAction for Upgrader {
+impl ICreepAction for Porter {
     fn get_creep(&self) -> &CreepProp {
         &self.creep
     }
@@ -18,26 +19,13 @@ impl ICreepAction for Upgrader {
     }
 }
 
-impl IRoleAction for Upgrader {
-    fn new(creep: CreepProp) -> impl IRoleAction {
-        Upgrader { creep }
+impl IRoleAction for Porter {
+    fn new(creep: CreepProp) -> Porter {
+        Porter { creep }
     }
 
     fn work_line(&mut self) -> anyhow::Result<()> {
-        match self.carry_up() {
-            Ok(r) => {
-                if r.is_some() {
-                    return Ok(());
-                }
-            }
-
-            Err(e) => {
-                warn!("{:?}", e);
-                return Err(e);
-            }
-        }
-
-        match self.harveste() {
+        match self.pickup() {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
@@ -49,7 +37,7 @@ impl IRoleAction for Upgrader {
             }
         }
 
-        match self.upgrade() {
+        match self.store(Some(find::FindStoreOption::carry_down())) {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
@@ -73,6 +61,17 @@ impl IRoleAction for Upgrader {
             }
         }
 
+        match self.upgrade() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
         info!(
             "{}",
             ScreepError::RoleCanNotWork(self.creep.ctx.role.to_string())
@@ -80,4 +79,3 @@ impl IRoleAction for Upgrader {
         Ok(())
     }
 }
-
