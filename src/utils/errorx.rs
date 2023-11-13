@@ -5,8 +5,8 @@ pub enum ScreepError {
     RoomNotfound(String),
     #[error("role can not: {0}")]
     RoleCanNotWork(String),
-    #[error("structure notfound: {0}")]
-    StructureNotfound(String),
+    // #[error("structure notfound: {0}")]
+    // StructureNotfound(String),
     #[error("screep 内部错误")]
     ScreepInner,
 }

@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use screeps::{
-    find, look, Creep, HasPosition, HasTypedId, ObjectId, Room, SharedCreepProperties, Source,
+    constants::Terrain,
+    find,
+    look::{self},
+    Creep, HasPosition, HasTypedId, ObjectId, Room, SharedCreepProperties, Source,
 };
 use serde::{Deserialize, Serialize};
 
@@ -34,16 +37,15 @@ impl SourceManager {
         room_id: String,
         creep: &Creep,
     ) -> Option<ObjectId<Source>> {
-        if let Some(source_i) = self.find_source(room_id.clone(), creep) {
-            if let Some(source) = source_i.resolve() {
-                if let Ok(r) = self.bind_source(room_id.clone(), source.id().to_string(), creep) {
-                    if r.is_some() {
-                        return Some(source_i);
-                    }
+        if let Some(source_i) = self.find_source_can_work(room_id.clone(), creep) {
+            let s = source_i.id();
+            if let Ok(r) = self.bind_source(room_id.clone(), s.to_string(), creep) {
+                if r.is_some() {
+                    return Some(s);
                 }
-                return None;
             }
-            log::warn!("source not found");
+            log::info!("source not found");
+            return None;
         }
         None
     }
@@ -52,7 +54,7 @@ impl SourceManager {
     ///
     /// * `room_id`:
     /// * `creep`:
-    pub fn find_source(&self, room_id: String, creep: &Creep) -> Option<ObjectId<Source>> {
+    pub fn find_source_can_work(&self, room_id: String, creep: &Creep) -> Option<Source> {
         let room = match utils::find::find_room(room_id.clone()) {
             Ok(r) => r,
             Err(e) => {
@@ -62,17 +64,17 @@ impl SourceManager {
         };
         let mut source_list = Vec::new();
         for source in room.find(find::SOURCES_ACTIVE, None).iter() {
-            let creep_ids = self.get_screeps(room_id.clone(), source.id().to_string());
-            if creep_ids.contains(&creep.name().to_string()) {
-                return Some(source.id());
-            }
-            if creep_ids.len() >= 2 {
+            if !self.check_can_work(
+                room_id.clone(),
+                source.id().to_string(),
+                creep.name().to_string(),
+            ) {
                 continue;
             }
+
             source_list.push(source.clone());
         }
-
-        utils::find::get_near_site(creep, &source_list).map(|r| r.id())
+        utils::find::get_near_site(creep, &source_list)
     }
 
     /// 绑定资源
@@ -88,9 +90,6 @@ impl SourceManager {
     ) -> anyhow::Result<Option<()>> {
         match self.room_item.get_mut(&room_id) {
             Some(r) => {
-                if r.check_bind(source_id.clone()).is_none() {
-                    return Ok(None);
-                }
                 r.bind_screep(source_id.clone(), creep.name().to_string());
                 Ok(Some(()))
             }
@@ -101,18 +100,11 @@ impl SourceManager {
         }
     }
 
-    /// 找到挖资源的creep
-    ///
-    /// * `room_id`:
-    /// * `source_id`:
-    pub fn get_screeps(&self, room_id: String, source_id: String) -> Vec<String> {
-        let mut res = Vec::new();
+    pub fn check_can_work(&self, room_id: String, source_id: String, creep_id: String) -> bool {
         if let Some(room) = self.room_item.get(&room_id) {
-            if let Some(creep) = room.source_map.get(&source_id) {
-                res = creep.creeps.clone();
-            }
+            return room.check_bind(source_id, creep_id);
         }
-        res
+        false
     }
 
     pub fn check(&mut self) {
@@ -145,26 +137,6 @@ pub struct RoomSourceItem {
     pub source_map: HashMap<String, SourceInfoItem>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SourceInfoItem {
-    pub source_id: String,
-    pub creeps: Vec<String>, // 挖掘的creep id
-    pub max_count: usize,    // 最大的source 挖掘人数
-}
-
-impl SourceInfoItem {
-    pub fn new(room: &Room, item: &Source) -> Self {
-        let count = utils::find::get_area_range(room, look::TERRAIN, item.pos(), 1).len();
-        let max_count: usize = 12 - count;
-        log::info!("max_count:{}-{}", max_count, count);
-        Self {
-            source_id: item.id().to_string(),
-            creeps: Vec::default(),
-            max_count,
-        }
-    }
-}
-
 impl RoomSourceItem {
     pub fn new(id: String) -> Self {
         RoomSourceItem {
@@ -174,6 +146,7 @@ impl RoomSourceItem {
         }
     }
 
+    /// 初始化结构，查询能够该source能够最多被多少个creep挖掘
     pub fn init(&mut self) -> anyhow::Result<()> {
         let room = match utils::find::find_room(self.room_id.clone()) {
             Ok(r) => r,
@@ -191,27 +164,77 @@ impl RoomSourceItem {
         Ok(())
     }
 
+    /// 检测自身数据是否正常
     pub fn check(&mut self) {
         for (_, screeps) in self.source_map.iter_mut() {
             utils::remove_expire_screep(&mut screeps.creeps);
-            utils::remove_repeat_screep(&mut screeps.creeps);
-        }
-    }
-    pub fn check_bind(&mut self, source_id: String) -> Option<()> {
-        if let Some(screeps) = self.source_map.get(&source_id) {
-            if screeps.creeps.len() >= screeps.max_count {
-                return None;
+            if screeps.max_count >= screeps.creeps.len() {
+                continue;
             }
-            return Some(());
+            screeps.creeps.truncate(screeps.max_count);
+            // utils::remove_repeat_screep(&mut screeps.creeps);
         }
-        None
     }
+    /// 检测能否进行绑定
+    ///
+    /// * `source_id`:
+    /// * `creep_id`:
+    pub fn check_bind(&self, source_id: String, creep_id: String) -> bool {
+        if let Some(screeps) = self.source_map.get(&source_id) {
+            if screeps.creeps.len() >= screeps.max_count && !screeps.creeps.contains(&creep_id) {
+                return false;
+            }
+            return true;
+        }
+        false
+    }
+    /// 绑定新关系，移除旧关系
+    ///
+    /// * `source_id`:
+    /// * `creep_id`:
     pub fn bind_screep(&mut self, source_id: String, creep_id: String) {
         if let Some(screeps) = self.source_map.get_mut(&source_id) {
             if screeps.creeps.contains(&creep_id) {
                 return;
             }
-            screeps.creeps.push(creep_id);
+            screeps.creeps.push(creep_id.clone());
+        }
+        for (s_id, source_info) in self.source_map.iter_mut() {
+            if s_id == &source_id {
+                continue;
+            }
+            source_info.creeps.retain(|item| item != &creep_id);
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SourceInfoItem {
+    pub source_id: String,
+    pub creeps: Vec<String>, // 挖掘的creep id
+    pub max_count: usize,    // 最大的source 挖掘人数
+}
+
+impl SourceInfoItem {
+    pub fn new(room: &Room, item: &Source) -> Self {
+        let count = utils::find::get_area_range(room, look::TERRAIN, item.pos(), 1)
+            .iter()
+            .filter(|item| match item.look_result {
+                look::LookResult::Terrain(a) => {
+                    if let Terrain::Wall = a {
+                        return true;
+                    }
+                    false
+                }
+                _ => false,
+            })
+            .count();
+
+        let max_count: usize = 9 - count;
+        Self {
+            source_id: item.id().to_string(),
+            creeps: Vec::default(),
+            max_count,
         }
     }
 }

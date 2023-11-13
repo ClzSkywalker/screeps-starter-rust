@@ -1,9 +1,5 @@
-use std::{
-    cell::{OnceCell, RefCell},
-    collections::HashMap,
-};
+use std::cell::{OnceCell, RefCell};
 
-use log::warn;
 use screeps::game;
 
 use crate::source::{
@@ -21,7 +17,7 @@ thread_local! {
     pub static SOURCE_MANAGER: RefCell<SourceManager> = RefCell::new(SourceManager::new());
 }
 
-pub fn init_global() {
+pub fn global_init() {
     CELL.with(|item| {
         item.get_or_init(|| {
             MEMORY_MANAGER.with(|memory_map| {
@@ -37,18 +33,18 @@ pub fn init_global() {
     });
 }
 
-pub fn clean_memory() {
-    MEMORY_MANAGER.with(|memory_map| {
-        let mut manager = memory_map.borrow_mut();
-        manager.room_item = HashMap::default();
-        SCREEP_MANAGER.with(|manager| {
-            let mut manager = manager.borrow_mut();
-            manager.room_item = HashMap::default();
-        });
-        SOURCE_MANAGER.with(|manager| {
-            let mut manager = manager.borrow_mut();
-            manager.room_item = HashMap::default();
-        });
+pub fn global_check() {
+    MEMORY_MANAGER.with(|manager| {
+        let mut manager = manager.borrow_mut();
+        manager.check();
+    });
+    SCREEP_MANAGER.with(|manager| {
+        let mut manager = manager.borrow_mut();
+        manager.check();
+    });
+    SOURCE_MANAGER.with(|manager| {
+        let mut manager = manager.borrow_mut();
+        manager.check();
     });
 }
 

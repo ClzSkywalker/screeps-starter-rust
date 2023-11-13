@@ -22,7 +22,8 @@ pub fn setup() {
 // to use a reserved name as a function name, use `js_name`:
 #[wasm_bindgen(js_name = loop)]
 pub fn game_loop() {
-    global::init_global();
+    global::global_init();
+    global::global_check();
 
     MEMORY_MANAGER.with(|manager| {
         let mut manager = manager.borrow_mut();
@@ -73,7 +74,6 @@ pub fn game_loop() {
             }
         }
     }
-    // global::clean_memory();
 
     SCREEP_MANAGER.with(|manager| {
         let screep_manager = manager.borrow();

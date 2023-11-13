@@ -36,8 +36,9 @@ pub fn setup_logging(verbosity: log::LevelFilter) {
         .level(verbosity)
         .format(|out, message, record| {
             out.finish(format_args!(
-                "({}) file:{},line:{}, {}: {}",
+                "({}) {} file:{},line:{}, {}: {}",
                 record.level(),
+                chrono::Local::now(),
                 record.file().unwrap(),
                 record.line().unwrap(),
                 record.target(),
@@ -107,3 +108,4 @@ fn panic_hook(info: &PanicInfo) {
 
     error!("{}", fmt_error);
 }
+

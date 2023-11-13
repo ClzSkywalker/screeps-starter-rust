@@ -36,6 +36,19 @@ impl IRoleAction for Harvester {
             }
         }
 
+        // 应当改变角色的
+        match self.carry_up() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
         match self.store(Some(find::FindStoreOption::harvester_build())) {
             Ok(r) => {
                 if r.is_some() {

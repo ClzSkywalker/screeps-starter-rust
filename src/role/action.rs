@@ -73,10 +73,7 @@ pub trait ICreepAction {
         });
         let source = match source {
             Some(r) => r,
-            None => {
-                warn!("{}", ScreepError::StructureNotfound("source".to_string()));
-                return Err(ScreepError::StructureNotfound("source".to_string()).into());
-            }
+            None => return Ok(None),
         };
 
         if let Some(site) = source.resolve() {
