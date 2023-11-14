@@ -3,10 +3,9 @@ use std::{collections::HashMap, str::FromStr};
 use screeps::{
     find, game,
     look::{self, PositionedLookResult},
-    pathfinder::SingleRoomCostResult,
     prelude::*,
-    ConstructionSite, Creep, FindPathOptions, ObjectId, Path, Position, Resource, ResourceType,
-    Room, RoomName, Source, StructureController, StructureObject, StructureType,
+    ConstructionSite, Creep, ObjectId, Position, Resource, ResourceType, Room, RoomName, Source,
+    StructureController, StructureObject, StructureType,
 };
 
 use super::errorx::ScreepError;
@@ -223,16 +222,35 @@ pub fn get_near_site<T>(creep: &Creep, structure_list: &[T]) -> Option<T>
 where
     T: Clone + HasPosition,
 {
+    let creep_pos = creep.pos();
+    let creep_x = Position::x(creep_pos).u8();
+    let creep_y = Position::y(creep_pos).u8();
     if let Some(structure) = structure_list.iter().min_by_key(|x| {
-        let find_ops = FindPathOptions::<
-            fn(RoomName, screeps::CostMatrix) -> SingleRoomCostResult,
-            SingleRoomCostResult,
-        >::new();
-        let x = (*x).clone();
-        match creep.pos().find_path_to(&x, Some(find_ops)) {
-            Path::Vectorized(r) => r.len(),
-            Path::Serialized(r) => r.len(),
-        }
+        // let find_ops = FindPathOptions::<
+        //     fn(RoomName, screeps::CostMatrix) -> SingleRoomCostResult,
+        //     SingleRoomCostResult,
+        // >::new();
+        let target_pos = x.pos();
+        let target_x = Position::x(target_pos).u8();
+        let target_y = Position::y(target_pos).u8();
+        let x: f32 = if creep_x > target_x {
+            f32::from(creep_x - target_x).powf(2.0)
+        } else {
+            f32::from(target_x - creep_x).powf(2.0)
+        };
+
+        let y: f32 = if creep_x > target_x {
+            f32::from(creep_y - target_y).powf(2.0)
+        } else {
+            f32::from(target_y - creep_y).powf(2.0)
+        };
+        (x + y).sqrt() as i32
+
+        // let x = (*x).clone();
+        // match creep.pos().find_path_to(&x, Some(find_ops)) {
+        //     Path::Vectorized(r) => r.len(),
+        //     Path::Serialized(r) => r.len(),
+        // }
     }) {
         return Some(structure.clone());
     };
@@ -249,4 +267,3 @@ pub fn get_area_range<T: look::LookConstant>(
     let y = Position::y(pos).u8();
     room.look_for_at_area(look_type, y - range, x - range, y + range, x + range)
 }
-

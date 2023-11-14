@@ -38,7 +38,7 @@ pub fn setup_logging(verbosity: log::LevelFilter) {
             out.finish(format_args!(
                 "({}) {} file:{},line:{}, {}: {}",
                 record.level(),
-                chrono::Local::now(),
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
                 record.file().unwrap(),
                 record.line().unwrap(),
                 record.target(),
