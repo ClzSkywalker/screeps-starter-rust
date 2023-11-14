@@ -64,19 +64,19 @@ impl StoreStatus {
 pub enum CreepStatus {
     // 收割中
     #[default]
-    #[strum(serialize = "🔄harvest")]
+    #[strum(serialize = "⛏️")]
     Harversting,
     // 建造中🚧 build
-    #[strum(serialize = "🚧build")]
+    #[strum(serialize = "🚧")]
     Building,
     // 资源未找到
-    #[strum(serialize = "notfound")]
+    #[strum(serialize = "☹")]
     SourceNotfound,
     // 到容器中寻找能量
-    #[strum(serialize = "♋carryUp")]
+    #[strum(serialize = "🐛")]
     CarryUp,
     // 把能量放下
-    #[strum(serialize = "♒carryDown")]
+    #[strum(serialize = "🐌")]
     CarryDown,
     // 升级
     Upgrade,

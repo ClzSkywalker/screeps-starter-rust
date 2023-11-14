@@ -26,9 +26,7 @@ pub fn global_init() {
                     let mut room_memory = RoomMemory::new(room.name().to_string());
                     room_memory.init();
                     memory_map.add_room(room_memory);
-                    log::info!("mm11:{:?}", memory_map.room_item);
                 }
-                log::info!("mm:{:?}", memory_map.room_item);
                 let room_creeps: Vec<RoomScreepsItem> = memory_map
                     .room_item
                     .values()
@@ -42,9 +40,7 @@ pub fn global_init() {
 
                 SCREEP_MANAGER.with(|manager| {
                     let mut manager = manager.borrow_mut();
-                    log::info!("qw11:{:?}", room_creeps);
                     manager.init(room_creeps);
-                    log::info!("qw1:{:?}", manager.room_item);
                 });
                 SOURCE_MANAGER.with(|manager| {
                     let mut manager = manager.borrow_mut();
