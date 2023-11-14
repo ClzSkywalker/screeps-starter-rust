@@ -94,7 +94,7 @@ impl FindStoreOption {
     }
 
     /// harvester 存储忽略ext,spawn
-    pub fn harvester_build() -> Self {
+    pub fn harvester_store() -> Self {
         Self {
             resource_type: Some(ResourceType::Energy),
             status: FindStoreStatus::FreeCapacity,

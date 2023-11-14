@@ -79,6 +79,7 @@ pub enum CreepStatus {
     #[strum(serialize = "🐌")]
     CarryDown,
     // 升级
+    #[strum(serialize = "🔥")]
     Upgrade,
 }
 

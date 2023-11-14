@@ -147,7 +147,10 @@ pub trait ICreepAction {
     // 收割检测
     fn build_check(&self) -> bool {
         let prop = self.get_creep();
-        matches!(prop.ctx.status, CreepStatus::Building)
+        matches!(
+            prop.ctx.status,
+            CreepStatus::Building | CreepStatus::CarryDown,
+        )
     }
     // 建造待建造的建筑
     fn build(&mut self) -> anyhow::Result<Option<()>> {
@@ -232,7 +235,10 @@ pub trait ICreepAction {
 
     fn store_check(&self) -> bool {
         let prop = self.get_creep();
-        matches!(prop.ctx.status, CreepStatus::Building)
+        matches!(
+            prop.ctx.status,
+            CreepStatus::Building | CreepStatus::CarryDown
+        )
     }
 
     /// 将资源存储进容器

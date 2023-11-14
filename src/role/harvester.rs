@@ -1,6 +1,9 @@
-use screeps::{look, HasPosition, StructureType};
+use screeps::{game, look, HasPosition, StructureType};
 
-use crate::utils::{self, errorx::ScreepError, find};
+use crate::{
+    global,
+    utils::{self, errorx::ScreepError, find},
+};
 
 use super::{action::ICreepAction, creep::CreepProp, IRoleAction};
 
@@ -36,13 +39,69 @@ impl IRoleAction for Harvester {
             }
         }
 
-        // 如果 controller 等级小于2，周围10格内有spawn则运输能量到spawn
+        // 把能量存储进一定范围内的容器
+        let count = utils::find::get_area_range(
+            &self.creep.room,
+            look::STRUCTURES,
+            self.creep.creep.pos(),
+            10,
+        )
+        .iter()
+        .filter(|item| match &item.look_result {
+            look::LookResult::Structure(a) => {
+                matches!(
+                    a.structure_type(),
+                    StructureType::Container | StructureType::Extension
+                )
+            }
+            _ => false,
+        })
+        .count();
+        if count > 0 {
+            match self.store(Some(find::FindStoreOption::harvester_store())) {
+                Ok(r) => {
+                    if r.is_some() {
+                        return Ok(());
+                    }
+                }
+                Err(e) => {
+                    log::warn!("{:?}", e);
+                    return Err(e);
+                }
+            }
+        }
+
+        // 如果 controller 等级小于2，则运输资源给控制器升级
         if self.creep.room.controller().unwrap().level() < 2 {
+            match self.upgrade() {
+                Ok(r) => {
+                    if r.is_some() {
+                        return Ok(());
+                    }
+                }
+                Err(e) => {
+                    log::warn!("{:?}", e);
+                    return Err(e);
+                }
+            }
+        }
+
+        // 如果当前creep的数目小于最大挖掘人数，则运输资源到spawn
+        let creep_count = game::creeps().keys().count();
+        let create_creep = global::SOURCE_MANAGER.with(|manager| {
+            let manager = manager.borrow();
+            if let Some(r) = manager.room_item.get(&self.creep.room.name().to_string()) {
+                return creep_count < r.max_count;
+            }
+            false
+        });
+
+        if create_creep {
             let count = utils::find::get_area_range(
                 &self.creep.room,
                 look::STRUCTURES,
                 self.creep.creep.pos(),
-                10,
+                25,
             )
             .iter()
             .filter(|item| match &item.look_result {
@@ -66,35 +125,6 @@ impl IRoleAction for Harvester {
                         log::warn!("{:?}", e);
                         return Err(e);
                     }
-                }
-            }
-        }
-
-        // 把能量存储进一定范围内的容器
-        let count = utils::find::get_area_range(
-            &self.creep.room,
-            look::STRUCTURES,
-            self.creep.creep.pos(),
-            10,
-        )
-        .iter()
-        .filter(|item| match &item.look_result {
-            look::LookResult::Structure(a) => {
-                matches!(a.structure_type(), StructureType::Container)
-            }
-            _ => false,
-        })
-        .count();
-        if count > 0 {
-            match self.store(Some(find::FindStoreOption::harvester_build())) {
-                Ok(r) => {
-                    if r.is_some() {
-                        return Ok(());
-                    }
-                }
-                Err(e) => {
-                    log::warn!("{:?}", e);
-                    return Err(e);
                 }
             }
         }
