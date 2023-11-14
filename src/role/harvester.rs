@@ -1,6 +1,6 @@
-use log::*;
+use screeps::{look, HasPosition, StructureType};
 
-use crate::utils::{errorx::ScreepError, find};
+use crate::utils::{self, errorx::ScreepError, find};
 
 use super::{action::ICreepAction, creep::CreepProp, IRoleAction};
 
@@ -31,33 +31,71 @@ impl IRoleAction for Harvester {
                 }
             }
             Err(e) => {
-                warn!("{:?}", e);
+                log::warn!("{:?}", e);
                 return Err(e);
             }
         }
 
-        // 应当改变角色的
-        match self.carry_up() {
-            Ok(r) => {
-                if r.is_some() {
-                    return Ok(());
+        // 如果 controller 等级小于2，周围10格内有spawn则运输能量到spawn
+        if self.creep.room.controller().unwrap().level() < 2 {
+            let count = utils::find::get_area_range(
+                &self.creep.room,
+                look::STRUCTURES,
+                self.creep.creep.pos(),
+                10,
+            )
+            .iter()
+            .filter(|item| match &item.look_result {
+                look::LookResult::Structure(a) => {
+                    if a.clone().structure_type() == StructureType::Spawn {
+                        return true;
+                    }
+                    false
                 }
-            }
-            Err(e) => {
-                warn!("{:?}", e);
-                return Err(e);
+                _ => false,
+            })
+            .count();
+            if count > 0 {
+                match self.store(Some(find::FindStoreOption::carry_down())) {
+                    Ok(r) => {
+                        if r.is_some() {
+                            return Ok(());
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("{:?}", e);
+                        return Err(e);
+                    }
+                }
             }
         }
 
-        match self.store(Some(find::FindStoreOption::harvester_build())) {
-            Ok(r) => {
-                if r.is_some() {
-                    return Ok(());
-                }
+        // 把能量存储进一定范围内的容器
+        let count = utils::find::get_area_range(
+            &self.creep.room,
+            look::STRUCTURES,
+            self.creep.creep.pos(),
+            10,
+        )
+        .iter()
+        .filter(|item| match &item.look_result {
+            look::LookResult::Structure(a) => {
+                matches!(a.structure_type(), StructureType::Container)
             }
-            Err(e) => {
-                warn!("{:?}", e);
-                return Err(e);
+            _ => false,
+        })
+        .count();
+        if count > 0 {
+            match self.store(Some(find::FindStoreOption::harvester_build())) {
+                Ok(r) => {
+                    if r.is_some() {
+                        return Ok(());
+                    }
+                }
+                Err(e) => {
+                    log::warn!("{:?}", e);
+                    return Err(e);
+                }
             }
         }
 
@@ -68,7 +106,7 @@ impl IRoleAction for Harvester {
                 }
             }
             Err(e) => {
-                warn!("{:?}", e);
+                log::warn!("{:?}", e);
                 return Err(e);
             }
         }
@@ -80,11 +118,12 @@ impl IRoleAction for Harvester {
                 }
             }
             Err(e) => {
-                warn!("{:?}", e);
+                log::warn!("{:?}", e);
                 return Err(e);
             }
         }
-        info!(
+
+        log::info!(
             "{}",
             ScreepError::RoleCanNotWork(self.creep.ctx.role.to_string())
         );

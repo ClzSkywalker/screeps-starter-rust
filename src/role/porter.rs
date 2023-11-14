@@ -37,6 +37,18 @@ impl IRoleAction for Porter {
             }
         }
 
+        match self.carry_up() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
         match self.store(Some(find::FindStoreOption::carry_down())) {
             Ok(r) => {
                 if r.is_some() {

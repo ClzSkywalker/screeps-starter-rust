@@ -26,18 +26,37 @@ pub fn global_init() {
                     let mut room_memory = RoomMemory::new(room.name().to_string());
                     room_memory.init();
                     memory_map.add_room(room_memory);
+                    log::info!("mm11:{:?}", memory_map.room_item);
                 }
+                log::info!("mm:{:?}", memory_map.room_item);
+                let room_creeps: Vec<RoomScreepsItem> = memory_map
+                    .room_item
+                    .values()
+                    .map(|item| item.creeps_info.clone())
+                    .collect();
+                let room_source: Vec<RoomSourceItem> = memory_map
+                    .room_item
+                    .values()
+                    .map(|item| item.source_info.clone())
+                    .collect();
+
+                SCREEP_MANAGER.with(|manager| {
+                    let mut manager = manager.borrow_mut();
+                    log::info!("qw11:{:?}", room_creeps);
+                    manager.init(room_creeps);
+                    log::info!("qw1:{:?}", manager.room_item);
+                });
+                SOURCE_MANAGER.with(|manager| {
+                    let mut manager = manager.borrow_mut();
+                    manager.init(room_source);
+                });
             });
-            init_manager();
         });
     });
 }
 
+/// 检测全局对象数据是否正常
 pub fn global_check() {
-    MEMORY_MANAGER.with(|manager| {
-        let mut manager = manager.borrow_mut();
-        manager.check();
-    });
     SCREEP_MANAGER.with(|manager| {
         let mut manager = manager.borrow_mut();
         manager.check();
@@ -48,27 +67,34 @@ pub fn global_check() {
     });
 }
 
-pub fn init_manager() {
-    MEMORY_MANAGER.with(|memory_map| {
-        let memory_map = memory_map.borrow_mut();
-        let room_creeps: Vec<RoomScreepsItem> = memory_map
-            .room_item
-            .values()
-            .map(|item| item.creeps_info.clone())
-            .collect();
-        let room_source: Vec<RoomSourceItem> = memory_map
-            .room_item
-            .values()
-            .map(|item| item.source_info.clone())
-            .collect();
-
-        SCREEP_MANAGER.with(|manager| {
-            let mut manager = manager.borrow_mut();
-            manager.init(room_creeps);
-        });
+/// 将数据保存到room的memory中
+pub fn save_memory() {
+    SCREEP_MANAGER.with(|manager| {
+        let screep_manager = manager.borrow();
         SOURCE_MANAGER.with(|manager| {
-            let mut manager = manager.borrow_mut();
-            manager.init(room_source);
+            let source_manager = manager.borrow();
+            MEMORY_MANAGER.with(|manager| {
+                let mut memory_manager = manager.borrow_mut();
+                for memory in memory_manager.room_item.values_mut() {
+                    let screep_m = match screep_manager.get_memory(memory.room_id.clone()) {
+                        Some(r) => r,
+                        None => {
+                            log::warn!("screep empty");
+                            continue;
+                        }
+                    };
+                    let source_m = match source_manager.get_memory(memory.room_id.clone()) {
+                        Some(r) => r,
+                        None => {
+                            log::warn!("source empty");
+                            continue;
+                        }
+                    };
+                    memory.creeps_info = screep_m;
+                    memory.source_info = source_m;
+                }
+                memory_manager.set_memory();
+            });
         });
     });
 }

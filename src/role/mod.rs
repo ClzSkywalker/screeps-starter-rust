@@ -78,12 +78,6 @@ impl RoleAction {
     }
 
     pub fn run(&self) {
-        // match self {
-        //     RoleAction::Harvester(prop) => harvester::Harvester::new(prop.clone()),
-        //     RoleAction::Upgrader(prop) => upgrader::Upgrader::new(prop.clone()),
-        //     RoleAction::Builder(prop) => builder::Builder::new(prop.clone()),
-        // };
-
         match self {
             RoleAction::Harvester(prop) => {
                 let mut role = harvester::Harvester::new(prop.clone());

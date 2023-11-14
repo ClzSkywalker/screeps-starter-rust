@@ -13,12 +13,19 @@ pub struct CreepMemory {
 
 impl CreepMemory {
     pub fn new(creep: &Creep) -> Self {
-        Self {
+        serde_json::from_str(
+            creep
+                .memory()
+                .as_string()
+                .unwrap_or("".to_string())
+                .as_str(),
+        )
+        .unwrap_or(Self {
             name: creep.name().to_string(),
             role: Default::default(),
             status: Default::default(),
             store_status: StoreStatus::new(creep),
-        }
+        })
     }
 }
 

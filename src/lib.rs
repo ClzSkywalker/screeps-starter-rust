@@ -1,5 +1,3 @@
-use global::{MEMORY_MANAGER, SCREEP_MANAGER, SOURCE_MANAGER};
-use log::*;
 use model::ctx::CreepMemory;
 
 use role::{creep::CreepProp, RoleAction};
@@ -25,35 +23,23 @@ pub fn game_loop() {
     global::global_init();
     global::global_check();
 
-    MEMORY_MANAGER.with(|manager| {
-        let mut manager = manager.borrow_mut();
-        manager.check();
-    });
-    SCREEP_MANAGER.with(|manager| {
-        let mut manager = manager.borrow_mut();
-        manager.check();
-    });
-    SOURCE_MANAGER.with(|manager| {
-        let mut manager = manager.borrow_mut();
-        manager.check();
-    });
-
     for creep in game::creeps().values() {
         if creep.spawning() {
             continue;
         }
 
-        let creep_memory: CreepMemory = SCREEP_MANAGER.with(|manager| {
+        let creep_memory: CreepMemory = global::SCREEP_MANAGER.with(|manager| {
             let mut manager = manager.borrow_mut();
             manager.get_or_init_memory(&creep)
         });
 
         RoleAction::new(CreepProp::new(creep, creep_memory)).run();
     }
+
     let mut additional = 0;
     for spawn in game::spawns().values() {
         let mut spawing = false;
-        SCREEP_MANAGER.with(|manager| {
+        global::SCREEP_MANAGER.with(|manager| {
             let manager = manager.borrow();
             spawing = manager.can_spawing(spawn.room().unwrap().name().to_string());
         });
@@ -70,36 +56,11 @@ pub fn game_loop() {
                 Ok(()) => {
                     additional += 1;
                 }
-                Err(e) => warn!("couldn't spawn: {:?}", e),
+                Err(e) => log::warn!("couldn't spawn: {:?}", e),
             }
         }
     }
 
-    SCREEP_MANAGER.with(|manager| {
-        let screep_manager = manager.borrow();
-        SOURCE_MANAGER.with(|manager| {
-            let source_manager = manager.borrow();
-            MEMORY_MANAGER.with(|manager| {
-                let mut memory_manager = manager.borrow_mut();
-                for memory in memory_manager.room_item.values_mut() {
-                    let screep_m = match screep_manager.get_memory(memory.room_id.clone()) {
-                        Some(r) => r,
-                        None => {
-                            continue;
-                        }
-                    };
-                    let source_m = match source_manager.get_memory(memory.room_id.clone()) {
-                        Some(r) => r,
-                        None => {
-                            continue;
-                        }
-                    };
-                    memory.creeps_info = screep_m;
-                    memory.source_info = source_m;
-                }
-                memory_manager.set_memory();
-            });
-        });
-    });
+    global::save_memory();
 }
 

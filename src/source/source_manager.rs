@@ -107,6 +107,7 @@ impl SourceManager {
         false
     }
 
+    /// 检测creep是否正常，把不正常的解除绑定
     pub fn check(&mut self) {
         for ele in self.room_item.values_mut() {
             ele.check();

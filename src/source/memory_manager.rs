@@ -25,11 +25,11 @@ impl RoomMemoryManager {
         }
     }
 
-    pub fn check(&mut self) {
-        for ele in self.room_item.values_mut() {
-            ele.check();
-        }
-    }
+    // pub fn check(&mut self) {
+    //     for ele in self.room_item.values_mut() {
+    //         ele.check();
+    //     }
+    // }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -68,29 +68,28 @@ impl RoomMemory {
         let mut room_source = RoomSourceItem::new(self.room_id.clone());
         match room.memory().as_string() {
             Some(memory_str) => match serde_json::from_str(memory_str.as_str()) {
+                //memory_str.as_str()
                 Ok(r) => {
                     let tmp: RoomMemory = r;
-                    room_screep = tmp.creeps_info;
                     room_source = tmp.source_info;
                 }
                 Err(e) => {
                     warn!("{:?},json:{}", e, memory_str.as_str());
-                    let _ = room_screep.init();
                     let _ = room_source.init();
                 }
             },
             None => {
-                let _ = room_screep.init();
                 let _ = room_source.init();
             }
         };
+        let _ = room_screep.init();
         self.creeps_info = room_screep;
         self.source_info = room_source;
     }
 
-    pub fn check(&mut self) {
-        self.creeps_info.check();
-    }
+    // pub fn check(&mut self) {
+    //     self.creeps_info.check();
+    // }
 
     pub fn set_memory(&self) {
         if let Ok(room) = utils::find::find_room(self.room_id.clone()) {

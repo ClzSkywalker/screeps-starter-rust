@@ -199,6 +199,18 @@ pub fn find_site(creep: &Creep, room: &Room) -> Option<ConstructionSite> {
     get_near_site(creep, &structure_list)
 }
 
+/// 查询对应类型建筑物数目
+///
+/// * `room`:
+/// * `s`:
+// pub fn get_structure_count<T: find::FindConstant>(room: &Room, s: Vec<T>) -> usize {
+//     let mut count = 0;
+//     for ele in s {
+//         count += room.find(ele, None).len();
+//     }
+//     count
+// }
+
 /// 根据房间名查询房间
 ///
 /// * `name`:
@@ -226,10 +238,6 @@ where
     let creep_x = Position::x(creep_pos).u8();
     let creep_y = Position::y(creep_pos).u8();
     if let Some(structure) = structure_list.iter().min_by_key(|x| {
-        // let find_ops = FindPathOptions::<
-        //     fn(RoomName, screeps::CostMatrix) -> SingleRoomCostResult,
-        //     SingleRoomCostResult,
-        // >::new();
         let target_pos = x.pos();
         let target_x = Position::x(target_pos).u8();
         let target_y = Position::y(target_pos).u8();
@@ -239,18 +247,12 @@ where
             f32::from(target_x - creep_x).powf(2.0)
         };
 
-        let y: f32 = if creep_x > target_x {
+        let y: f32 = if creep_y > target_y {
             f32::from(creep_y - target_y).powf(2.0)
         } else {
             f32::from(target_y - creep_y).powf(2.0)
         };
         (x + y).sqrt() as i32
-
-        // let x = (*x).clone();
-        // match creep.pos().find_path_to(&x, Some(find_ops)) {
-        //     Path::Vectorized(r) => r.len(),
-        //     Path::Serialized(r) => r.len(),
-        // }
     }) {
         return Some(structure.clone());
     };
@@ -265,5 +267,10 @@ pub fn get_area_range<T: look::LookConstant>(
 ) -> Vec<PositionedLookResult> {
     let x = Position::x(pos).u8();
     let y = Position::y(pos).u8();
-    room.look_for_at_area(look_type, y - range, x - range, y + range, x + range)
+    let top_y = if y < range { 0 } else { y - range };
+    let left_x = if x < range { 0 } else { x - range };
+    let button_y = if y + range > 49 { 49 } else { y + range };
+    let right_x = if x + range > 49 { 49 } else { x + range };
+    room.look_for_at_area(look_type, top_y, left_x, button_y, right_x)
 }
+

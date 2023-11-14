@@ -1,6 +1,5 @@
 use std::{collections::HashMap, str::FromStr};
 
-use log::warn;
 use screeps::{game, Creep, RoomName, SharedCreepProperties};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
@@ -54,6 +53,7 @@ impl ScreepManager {
         None
     }
 
+    /// 检测数据是否正常
     pub fn check(&mut self) {
         for ele in self.room_item.values_mut() {
             ele.check();
@@ -77,7 +77,7 @@ impl ScreepManager {
                 let c: CreepMemory = match serde_json::from_str(&r) {
                     Ok(r) => r,
                     Err(e) => {
-                        warn!("{:?}", e);
+                        log::warn!("{:?}", e);
                         match self.add_screep(creep.clone()) {
                             Some(r) => r,
                             None => CreepMemory::new(creep),
@@ -100,6 +100,7 @@ pub struct RoomScreepsItem {
     pub harvester: usize,
     pub upgrader: usize,
     pub builder: usize,
+    pub porter: usize,
     // 管理id
     pub creep_map: HashMap<String, RoleEnum>,
 }
@@ -117,12 +118,12 @@ impl RoomScreepsItem {
         }
     }
 
-    // 读取每个creep memory初始化creep item manager
+    // 读取每个creep memory初始化，只读取memory能够解析的creep
     pub fn init(&mut self) -> anyhow::Result<()> {
         let room = match RoomName::from_str(&self.room_id) {
             Ok(r) => r,
             Err(e) => {
-                warn!("{:?}", e);
+                log::warn!("{:?}", e);
                 return Err(e.into());
             }
         };
@@ -131,53 +132,50 @@ impl RoomScreepsItem {
             if creep.room().unwrap().name() != room {
                 continue;
             }
-            match creep.memory().as_string() {
-                Some(r) => {
-                    if let Err(e) = serde_json::from_str::<CreepMemory>(r.as_str()) {
-                        warn!("{:?},json:{}", e, r.as_str());
-                        if let Err(e) = self.add_screep(creep) {
-                            log::warn!("{:?}", e);
-                        }
-                    };
-                }
-                None => {
-                    if let Err(e) = self.add_screep(creep) {
-                        log::warn!("{:?}", e);
-                    }
-                }
-            };
+            if creep.memory().is_null() {
+                continue;
+            }
+            if let Some(r) = creep.memory().as_string() {
+                if let Ok(e) = serde_json::from_str::<CreepMemory>(r.as_str()) {
+                    self.bind_screep(e);
+                };
+            }
         }
         Ok(())
+    }
+
+    pub fn bind_screep(&mut self, memory: CreepMemory) {
+        self.creep_map.insert(memory.name, memory.role);
+        self.add_count(memory.role);
     }
 
     // 添加creep
     pub fn add_screep(&mut self, creep: Creep) -> anyhow::Result<CreepMemory> {
         let role = self.next_role()?;
         let mut c = CreepMemory::new(&creep);
+
         c.role = role;
         creep.set_memory(&JsValue::from_str(c.to_string().as_str()));
-        self.add_count(&creep, role);
+        self.creep_map.insert(creep.name(), c.role);
+        self.add_count(role);
         Ok(c)
     }
 
     // 检测creep是否还存在
     pub fn check(&mut self) {
+        self.harvester = 0;
+        self.upgrader = 0;
+        self.builder = 0;
+        self.porter = 0;
         self.creep_map.retain(|x, _| utils::check_creep(x.clone()));
-        self.harvester = self
-            .creep_map
-            .values()
-            .filter(|x| **x == RoleEnum::Harvester)
-            .count();
-        self.upgrader = self
-            .creep_map
-            .values()
-            .filter(|x| **x == RoleEnum::Upgrader)
-            .count();
-        self.builder = self
-            .creep_map
-            .values()
-            .filter(|x| **x == RoleEnum::Builder)
-            .count();
+        for ele in self.creep_map.values() {
+            match ele {
+                RoleEnum::Harvester => self.harvester += 1,
+                RoleEnum::Upgrader => self.upgrader += 1,
+                RoleEnum::Builder => self.builder += 1,
+                RoleEnum::Porter => self.porter += 1,
+            }
+        }
     }
 
     pub fn next_role(&self) -> anyhow::Result<RoleEnum> {
@@ -198,29 +196,34 @@ impl RoomScreepsItem {
         if self.harvester < room_source_info.max_count {
             return Ok(RoleEnum::Harvester);
         }
-        if self.builder == 0 {
-            return Ok(RoleEnum::Builder);
+        if self.porter == 0 {
+            return Ok(RoleEnum::Porter);
         }
         if self.upgrader == 0 {
             return Ok(RoleEnum::Upgrader);
         }
-        if self.upgrader < self.harvester * 2 {
+        if self.builder == 0 {
+            return Ok(RoleEnum::Builder);
+        }
+
+        if self.builder < self.harvester * 2 {
             Ok(RoleEnum::Upgrader)
-        } else if self.builder < self.harvester * 2 {
+        } else if self.upgrader < self.harvester * 2 {
             Ok(RoleEnum::Builder)
+        } else if self.porter < self.harvester * 2 {
+            Ok(RoleEnum::Porter)
         } else {
             Ok(RoleEnum::Harvester)
         }
     }
 
-    fn add_count(&mut self, creep: &Creep, role: RoleEnum) {
+    fn add_count(&mut self, role: RoleEnum) {
         match role {
             RoleEnum::Harvester => self.harvester += 1,
             RoleEnum::Upgrader => self.upgrader += 1,
             RoleEnum::Builder => self.builder += 1,
-            _ => {}
+            RoleEnum::Porter => self.porter += 1,
         }
-        self.creep_map.insert(creep.name().to_string(), role);
     }
 }
 
