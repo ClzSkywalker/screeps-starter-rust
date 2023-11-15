@@ -49,7 +49,7 @@ impl IRoleAction for Porter {
             }
         }
 
-        match self.store(Some(find::FindStoreOption::carry_down())) {
+        match self.carry_down(Some(find::FindStoreOption::carry_down())) {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());

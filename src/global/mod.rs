@@ -27,6 +27,13 @@ pub fn global_init() {
                     room_memory.init();
                     memory_map.add_room(room_memory);
                 }
+                memory_map.room_item.retain(|key, _| {
+                    if key == "E57N41" {
+                        return false;
+                    }
+                    true
+                });
+
                 let room_creeps: Vec<RoomScreepsItem> = memory_map
                     .room_item
                     .values()

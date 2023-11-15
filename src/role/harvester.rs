@@ -39,35 +39,15 @@ impl IRoleAction for Harvester {
             }
         }
 
-        // 把能量存储进一定范围内的容器
-        let count = utils::find::get_area_range(
-            &self.creep.room,
-            look::STRUCTURES,
-            self.creep.creep.pos(),
-            10,
-        )
-        .iter()
-        .filter(|item| match &item.look_result {
-            look::LookResult::Structure(a) => {
-                matches!(
-                    a.structure_type(),
-                    StructureType::Container | StructureType::Extension
-                )
+        match self.carry_down(Some(find::FindStoreOption::harvester_store())) {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
             }
-            _ => false,
-        })
-        .count();
-        if count > 0 {
-            match self.store(Some(find::FindStoreOption::harvester_store())) {
-                Ok(r) => {
-                    if r.is_some() {
-                        return Ok(());
-                    }
-                }
-                Err(e) => {
-                    log::warn!("{:?}", e);
-                    return Err(e);
-                }
+            Err(e) => {
+                log::warn!("{:?}", e);
+                return Err(e);
             }
         }
 
@@ -115,7 +95,7 @@ impl IRoleAction for Harvester {
             })
             .count();
             if count > 0 {
-                match self.store(Some(find::FindStoreOption::carry_down())) {
+                match self.carry_down(Some(find::FindStoreOption::carry_down())) {
                     Ok(r) => {
                         if r.is_some() {
                             return Ok(());

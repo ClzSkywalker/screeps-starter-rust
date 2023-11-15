@@ -51,6 +51,7 @@ pub enum FindStoreStatus {
 /// * `ignore_structures`: 需要屏蔽的建筑
 /// * `select_structures`: 指定建筑类型
 /// *  priority: 优先级
+/// * `range`: 查找资源点范围
 #[derive(Default)]
 pub struct FindStoreOption {
     pub resource_type: Option<ResourceType>,
@@ -59,6 +60,7 @@ pub struct FindStoreOption {
     pub ignore_structures: Vec<StructureType>,
     pub select_structures: Option<Vec<StructureType>>,
     pub priority: Option<Vec<StructureType>>,
+    pub range: Option<usize>,
 }
 
 impl FindStoreOption {
@@ -71,6 +73,7 @@ impl FindStoreOption {
             ignore_structures: vec![StructureType::Spawn, StructureType::Extension],
             select_structures: Default::default(),
             priority: None,
+            range: None,
         }
     }
 
@@ -90,6 +93,7 @@ impl FindStoreOption {
                 StructureType::Spawn,
                 StructureType::Storage,
             ]),
+            range: None,
         }
     }
 
@@ -99,9 +103,10 @@ impl FindStoreOption {
             resource_type: Some(ResourceType::Energy),
             status: FindStoreStatus::FreeCapacity,
             withdraw: false,
-            ignore_structures: vec![StructureType::Spawn, StructureType::Extension],
+            ignore_structures: vec![],
             select_structures: None,
             priority: None,
+            range: Some(10),
         }
     }
 }
@@ -147,6 +152,11 @@ pub fn find_store(
                     if store1.store().get_used_capacity(option.resource_type) == 0 {
                         continue;
                     }
+                }
+            }
+            if let Some(range) = option.range {
+                if !exist_range(creep.pos(), structure.pos(), range) {
+                    continue;
                 }
             }
             if !option.withdraw {
@@ -272,5 +282,22 @@ pub fn get_area_range<T: look::LookConstant>(
     let button_y = if y + range > 49 { 49 } else { y + range };
     let right_x = if x + range > 49 { 49 } else { x + range };
     room.look_for_at_area(look_type, top_y, left_x, button_y, right_x)
+}
+
+/// 判断两个位置是否在区间内
+///
+/// * `pos1`:
+/// * `pos2`:
+/// * `range`:
+pub fn exist_range(pos1: Position, pos2: Position, range: usize) -> bool {
+    let x1 = Position::x(pos1).u8();
+    let y1 = Position::y(pos1).u8();
+    let x2 = Position::x(pos2).u8();
+    let y2 = Position::y(pos2).u8();
+    let x = if x1 > x2 { x1 - x2 } else { x2 - x1 };
+    let y = if y1 > y2 { y1 - y2 } else { y2 - y1 };
+    let x = i32::from(x).pow(2);
+    let y = i32::from(y).pow(2);
+    ((x + y) as f32).sqrt() <= range as f32
 }
 

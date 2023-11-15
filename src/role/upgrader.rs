@@ -75,7 +75,7 @@ impl IRoleAction for Upgrader {
 
         info!(
             "{}",
-            ScreepError::RoleCanNotWork(self.creep.ctx.role.to_string())
+            ScreepError::RoleCanNotWork(self.creep.ctx.role.get_role_name())
         );
         Ok(())
     }

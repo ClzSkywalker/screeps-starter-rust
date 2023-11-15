@@ -7,7 +7,7 @@ use wasm_bindgen::JsValue;
 use crate::{
     global::SOURCE_MANAGER,
     model::ctx::CreepMemory,
-    role::RoleEnum,
+    role::{RoleEnum, RoleStatus},
     utils::{self, errorx::ScreepError},
 };
 
@@ -101,14 +101,13 @@ pub struct RoomScreepsItem {
     pub upgrader: usize,
     pub builder: usize,
     pub porter: usize,
-    // 管理id
-    pub creep_map: HashMap<String, RoleEnum>,
+    // 管理id key-creep_id value-role_name
+    pub creep_map: HashMap<String, String>,
 }
 
 impl RoomScreepsItem {
     pub fn can_spawing(&self) -> bool {
-        // game::creeps().keys().count()
-        true
+        self.harvester + self.upgrader + self.builder + self.porter < 20
     }
 
     pub fn new(id: String) -> RoomScreepsItem {
@@ -145,8 +144,9 @@ impl RoomScreepsItem {
     }
 
     pub fn bind_screep(&mut self, memory: CreepMemory) {
-        self.creep_map.insert(memory.name, memory.role);
-        self.add_count(memory.role);
+        self.creep_map
+            .insert(memory.name, memory.role.get_role_name());
+        self.add_count(&memory.role);
     }
 
     // 添加creep
@@ -156,8 +156,8 @@ impl RoomScreepsItem {
 
         c.role = role;
         creep.set_memory(&JsValue::from_str(c.to_string().as_str()));
-        self.creep_map.insert(creep.name(), c.role);
-        self.add_count(role);
+        self.creep_map.insert(creep.name(), c.role.get_role_name());
+        self.add_count(&c.role);
         Ok(c)
     }
 
@@ -169,11 +169,11 @@ impl RoomScreepsItem {
         self.porter = 0;
         self.creep_map.retain(|x, _| utils::check_creep(x.clone()));
         for ele in self.creep_map.values() {
-            match ele {
-                RoleEnum::Harvester => self.harvester += 1,
-                RoleEnum::Upgrader => self.upgrader += 1,
-                RoleEnum::Builder => self.builder += 1,
-                RoleEnum::Porter => self.porter += 1,
+            match RoleEnum::from(ele.clone()) {
+                RoleEnum::Harvester(_) => self.harvester += 1,
+                RoleEnum::Upgrader(_) => self.upgrader += 1,
+                RoleEnum::Builder(_) => self.builder += 1,
+                RoleEnum::Porter(_) => self.porter += 1,
             }
         }
     }
@@ -194,35 +194,35 @@ impl RoomScreepsItem {
         };
 
         if self.harvester < room_source_info.max_count {
-            return Ok(RoleEnum::Harvester);
+            return Ok(RoleEnum::Harvester(RoleStatus::default()).default());
         }
         if self.porter == 0 {
-            return Ok(RoleEnum::Porter);
+            return Ok(RoleEnum::Porter(RoleStatus::default()).default());
         }
         if self.upgrader == 0 {
-            return Ok(RoleEnum::Upgrader);
+            return Ok(RoleEnum::Upgrader(RoleStatus::default()).default());
         }
         if self.builder == 0 {
-            return Ok(RoleEnum::Builder);
+            return Ok(RoleEnum::Builder(RoleStatus::default()).default());
         }
 
-        if self.builder < self.harvester * 2 {
-            Ok(RoleEnum::Upgrader)
-        } else if self.upgrader < self.harvester * 2 {
-            Ok(RoleEnum::Builder)
-        } else if self.porter < self.harvester * 2 {
-            Ok(RoleEnum::Porter)
+        if self.builder < self.harvester {
+            Ok(RoleEnum::Builder(RoleStatus::default()).default())
+        } else if self.upgrader < self.harvester {
+            Ok(RoleEnum::Upgrader(RoleStatus::default()).default())
+        } else if self.porter < self.harvester {
+            Ok(RoleEnum::Porter(RoleStatus::default()).default())
         } else {
-            Ok(RoleEnum::Harvester)
+            Ok(RoleEnum::Upgrader(RoleStatus::default()).default())
         }
     }
 
-    fn add_count(&mut self, role: RoleEnum) {
+    fn add_count(&mut self, role: &RoleEnum) {
         match role {
-            RoleEnum::Harvester => self.harvester += 1,
-            RoleEnum::Upgrader => self.upgrader += 1,
-            RoleEnum::Builder => self.builder += 1,
-            RoleEnum::Porter => self.porter += 1,
+            RoleEnum::Harvester(_) => self.harvester += 1,
+            RoleEnum::Upgrader(_) => self.upgrader += 1,
+            RoleEnum::Builder(_) => self.builder += 1,
+            RoleEnum::Porter(_) => self.porter += 1,
         }
     }
 }
