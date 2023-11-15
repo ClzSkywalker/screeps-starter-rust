@@ -231,7 +231,9 @@ pub fn find_drop_resource(creep: &Creep, room: &Room) -> Option<Resource> {
 pub fn find_tombstone(creep: &Creep, room: &Room) -> Option<Tombstone> {
     let mut structure_list: Vec<Tombstone> = Vec::new();
     for structure in room.find(find::TOMBSTONES, None).iter() {
-        structure_list.push(structure.clone());
+        if structure.store().get_used_capacity(Some(ResourceType::Energy))>0{
+            structure_list.push(structure.clone());
+        }
     }
     get_near_site(creep, &structure_list)
 }

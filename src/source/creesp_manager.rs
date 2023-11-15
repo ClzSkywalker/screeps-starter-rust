@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
 
 use crate::{
-    global::SOURCE_MANAGER,
+    global::{self, SOURCE_MANAGER},
     model::ctx::CreepMemory,
     role::{RoleEnum, RoleStatus},
     utils::{self, errorx::ScreepError},
@@ -108,7 +108,14 @@ pub struct RoomScreepsItem {
 
 impl RoomScreepsItem {
     pub fn can_spawing(&self) -> bool {
-        self.harvester + self.upgrader + self.builder + self.porter < 15
+        let mut max_count = 0;
+        global::SOURCE_MANAGER.with(|manager| {
+            let manager = manager.borrow();
+            if let Some(m) = manager.get_memory(self.room_id.clone()) {
+                max_count = m.max_count;
+            }
+        });
+        self.harvester + self.upgrader + self.builder + self.porter + self.repairer < max_count * 5
     }
 
     pub fn new(id: String) -> RoomScreepsItem {
@@ -215,12 +222,12 @@ impl RoomScreepsItem {
             return Ok(RoleEnum::Repairer(RoleStatus::default()).default());
         }
 
-        if self.builder < self.harvester {
+        if self.porter < self.harvester {
+            Ok(RoleEnum::Porter(RoleStatus::default()).default())
+        } else if self.builder < self.harvester {
             Ok(RoleEnum::Builder(RoleStatus::default()).default())
         } else if self.upgrader < self.harvester {
             Ok(RoleEnum::Upgrader(RoleStatus::default()).default())
-        } else if self.porter < self.harvester {
-            Ok(RoleEnum::Porter(RoleStatus::default()).default())
         } else if self.repairer < self.harvester {
             Ok(RoleEnum::Repairer(RoleStatus::default()).default())
         } else {
@@ -238,4 +245,3 @@ impl RoomScreepsItem {
         }
     }
 }
-

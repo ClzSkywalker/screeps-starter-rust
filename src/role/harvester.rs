@@ -39,6 +39,19 @@ impl IRoleAction for Harvester {
             }
         }
 
+        match self.carry_up() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+
+            Err(e) => {
+                log::warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
         match self.carry_down(Some(find::FindStoreOption::harvester_store())) {
             Ok(r) => {
                 if r.is_some() {

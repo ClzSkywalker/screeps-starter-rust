@@ -199,7 +199,7 @@ impl RoleEnum {
     pub fn check(&self, action: ActionStatus) -> bool {
         match self {
             RoleEnum::Harvester(status) => match action {
-                ActionStatus::Harversting => {
+                ActionStatus::Harversting | ActionStatus::CarryUp => {
                     matches!(status.creep_status, CreepStatus::Harversting)
                 }
                 ActionStatus::Upgrade | ActionStatus::Building | ActionStatus::CarryDown => {
@@ -220,7 +220,7 @@ impl RoleEnum {
                 ActionStatus::CarryUp => {
                     matches!(status.creep_status, CreepStatus::CarryUp)
                 }
-                ActionStatus::Building | ActionStatus::Upgrade => {
+                ActionStatus::Building | ActionStatus::Upgrade | ActionStatus::CarryDown => {
                     matches!(status.creep_status, CreepStatus::Building)
                 }
                 _ => false,
@@ -337,4 +337,3 @@ impl RoleAction {
         };
     }
 }
-

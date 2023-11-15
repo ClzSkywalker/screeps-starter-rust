@@ -1,6 +1,6 @@
 use log::*;
 
-use crate::utils::errorx::ScreepError;
+use crate::utils::{errorx::ScreepError, find};
 
 use super::{action::ICreepAction, creep::CreepProp, IRoleAction};
 
@@ -37,7 +37,7 @@ impl IRoleAction for Builder {
             }
         }
 
-        match self.harveste() {
+        match self.build() {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
@@ -49,7 +49,7 @@ impl IRoleAction for Builder {
             }
         }
 
-        match self.build() {
+        match self.carry_down(Some(find::FindStoreOption::carry_down())) {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
