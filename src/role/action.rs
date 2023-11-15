@@ -300,7 +300,16 @@ pub trait ICreepAction {
             utils::find::find_store(&prop.creep, &prop.room, Some(FindStoreOption::carry_up()))
         {
             if let Some(store) = structure.as_withdrawable() {
-                match prop.creep.withdraw(store, ResourceType::Energy, None) {
+                match prop.creep.withdraw(
+                    store,
+                    ResourceType::Energy,
+                    Some(
+                        prop.creep
+                            .store()
+                            .get_free_capacity(None)
+                            as u32,
+                    ),
+                ) {
                     Ok(_) => {
                         prop.ctx.role.change_action(ActionStatus::CarryUp);
                         return Ok(Some(()));
@@ -331,4 +340,3 @@ pub trait ICreepAction {
         Ok(None)
     }
 }
-
