@@ -108,7 +108,7 @@ pub struct RoomScreepsItem {
 
 impl RoomScreepsItem {
     pub fn can_spawing(&self) -> bool {
-        self.harvester + self.upgrader + self.builder + self.porter < 30
+        self.harvester + self.upgrader + self.builder + self.porter < 15
     }
 
     pub fn new(id: String) -> RoomScreepsItem {
