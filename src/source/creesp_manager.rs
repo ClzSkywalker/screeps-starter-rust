@@ -101,13 +101,14 @@ pub struct RoomScreepsItem {
     pub upgrader: usize,
     pub builder: usize,
     pub porter: usize,
+    pub repairer: usize,
     // 管理id key-creep_id value-role_name
     pub creep_map: HashMap<String, String>,
 }
 
 impl RoomScreepsItem {
     pub fn can_spawing(&self) -> bool {
-        self.harvester + self.upgrader + self.builder + self.porter < 20
+        self.harvester + self.upgrader + self.builder + self.porter < 30
     }
 
     pub fn new(id: String) -> RoomScreepsItem {
@@ -167,6 +168,7 @@ impl RoomScreepsItem {
         self.upgrader = 0;
         self.builder = 0;
         self.porter = 0;
+        self.repairer = 0;
         self.creep_map.retain(|x, _| utils::check_creep(x.clone()));
         for ele in self.creep_map.values() {
             match RoleEnum::from(ele.clone()) {
@@ -174,6 +176,7 @@ impl RoomScreepsItem {
                 RoleEnum::Upgrader(_) => self.upgrader += 1,
                 RoleEnum::Builder(_) => self.builder += 1,
                 RoleEnum::Porter(_) => self.porter += 1,
+                RoleEnum::Repairer(_) => self.repairer += 1,
             }
         }
     }
@@ -193,7 +196,7 @@ impl RoomScreepsItem {
             Err(e) => return Err(e.into()),
         };
 
-        if self.harvester < room_source_info.max_count {
+        if self.harvester == 0 {
             return Ok(RoleEnum::Harvester(RoleStatus::default()).default());
         }
         if self.porter == 0 {
@@ -205,6 +208,12 @@ impl RoomScreepsItem {
         if self.builder == 0 {
             return Ok(RoleEnum::Builder(RoleStatus::default()).default());
         }
+        if self.harvester < room_source_info.max_count {
+            return Ok(RoleEnum::Harvester(RoleStatus::default()).default());
+        }
+        if self.repairer == 0 {
+            return Ok(RoleEnum::Repairer(RoleStatus::default()).default());
+        }
 
         if self.builder < self.harvester {
             Ok(RoleEnum::Builder(RoleStatus::default()).default())
@@ -212,6 +221,8 @@ impl RoomScreepsItem {
             Ok(RoleEnum::Upgrader(RoleStatus::default()).default())
         } else if self.porter < self.harvester {
             Ok(RoleEnum::Porter(RoleStatus::default()).default())
+        } else if self.repairer < self.harvester {
+            Ok(RoleEnum::Repairer(RoleStatus::default()).default())
         } else {
             Ok(RoleEnum::Upgrader(RoleStatus::default()).default())
         }
@@ -223,6 +234,7 @@ impl RoomScreepsItem {
             RoleEnum::Upgrader(_) => self.upgrader += 1,
             RoleEnum::Builder(_) => self.builder += 1,
             RoleEnum::Porter(_) => self.porter += 1,
+            RoleEnum::Repairer(_) => self.repairer += 1,
         }
     }
 }

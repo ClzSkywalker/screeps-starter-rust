@@ -12,6 +12,7 @@ pub mod builder;
 pub mod creep;
 pub mod harvester;
 pub mod porter;
+pub mod repairer;
 pub mod upgrader;
 
 pub trait IRoleAction: ICreepAction {
@@ -62,12 +63,15 @@ pub enum RoleEnum {
     // 搬运工
     #[strum(serialize = "🐌")]
     Porter(RoleStatus),
+    #[strum(serialize = "💘")]
+    Repairer(RoleStatus),
 }
 
 const HARVESTER: &str = "harvester";
-const UPGRADER: &str = "upgrade";
+const UPGRADER: &str = "upgrader";
 const BUILDER: &str = "builder";
 const PORTER: &str = "porter";
+const REPAIRER: &str = "repairer";
 
 impl From<String> for RoleEnum {
     fn from(value: String) -> Self {
@@ -76,6 +80,7 @@ impl From<String> for RoleEnum {
             UPGRADER => RoleEnum::Upgrader(RoleStatus::default()),
             BUILDER => RoleEnum::Builder(RoleStatus::default()),
             PORTER => RoleEnum::Porter(RoleStatus::default()),
+            REPAIRER => RoleEnum::Repairer(RoleStatus::default()),
             _ => RoleEnum::Harvester(RoleStatus::default()),
         }
     }
@@ -88,45 +93,30 @@ impl RoleEnum {
             RoleEnum::Upgrader(_) => UPGRADER.to_string(),
             RoleEnum::Builder(_) => BUILDER.to_string(),
             RoleEnum::Porter(_) => PORTER.to_string(),
+            RoleEnum::Repairer(_) => REPAIRER.to_string(),
         }
     }
 
     pub fn get_say_test(&self) -> String {
-        match self {
-            RoleEnum::Harvester(status) => {
-                self.to_string() + status.action_status.to_string().as_str()
-            }
-            RoleEnum::Upgrader(status) => {
-                self.to_string() + status.action_status.to_string().as_str()
-            }
-            RoleEnum::Builder(status) => {
-                self.to_string() + status.action_status.to_string().as_str()
-            }
-            RoleEnum::Porter(status) => {
-                self.to_string() + status.action_status.to_string().as_str()
-            }
-        }
+        let status = match self {
+            RoleEnum::Harvester(status) => status.clone(),
+            RoleEnum::Upgrader(status) => status.clone(),
+            RoleEnum::Builder(status) => status.clone(),
+            RoleEnum::Porter(status) => status.clone(),
+            RoleEnum::Repairer(status) => status.clone(),
+        };
+        return self.to_string() + status.action_status.to_string().as_str();
     }
 
     /// 设置下默认角色状态
     pub fn default(&self) -> Self {
+        let status = RoleStatus::default();
         match self {
-            RoleEnum::Harvester(_) => RoleEnum::Harvester(RoleStatus {
-                creep_status: CreepStatus::SourceNotfound,
-                action_status: ActionStatus::NoWork,
-            }),
-            RoleEnum::Upgrader(_) => RoleEnum::Upgrader(RoleStatus {
-                creep_status: CreepStatus::SourceNotfound,
-                action_status: ActionStatus::NoWork,
-            }),
-            RoleEnum::Builder(_) => RoleEnum::Builder(RoleStatus {
-                creep_status: CreepStatus::SourceNotfound,
-                action_status: ActionStatus::NoWork,
-            }),
-            RoleEnum::Porter(_) => RoleEnum::Porter(RoleStatus {
-                creep_status: CreepStatus::SourceNotfound,
-                action_status: ActionStatus::NoWork,
-            }),
+            RoleEnum::Harvester(_) => RoleEnum::Harvester(status),
+            RoleEnum::Upgrader(_) => RoleEnum::Upgrader(status),
+            RoleEnum::Builder(_) => RoleEnum::Builder(status),
+            RoleEnum::Porter(_) => RoleEnum::Porter(status),
+            RoleEnum::Repairer(_) => RoleEnum::Repairer(status),
         }
     }
 
@@ -189,6 +179,20 @@ impl RoleEnum {
                     }
                 }
             }
+            RoleEnum::Repairer(status) => {
+                if !matches!(
+                    status.creep_status,
+                    CreepStatus::CarryUp | CreepStatus::Building | CreepStatus::SourceNotfound
+                ) {
+                    status.creep_status = CreepStatus::CarryUp
+                } else {
+                    match store_status {
+                        StoreStatus::Full => status.creep_status = CreepStatus::Building,
+                        StoreStatus::Empty => status.creep_status = CreepStatus::CarryUp,
+                        _ => {}
+                    }
+                }
+            }
         }
     }
 
@@ -230,6 +234,15 @@ impl RoleEnum {
                 }
                 _ => false,
             },
+            RoleEnum::Repairer(status) => match action {
+                ActionStatus::CarryUp => {
+                    matches!(status.creep_status, CreepStatus::CarryUp)
+                }
+                ActionStatus::CarryDown | ActionStatus::Building | ActionStatus::Upgrade => {
+                    matches!(status.creep_status, CreepStatus::Building)
+                }
+                _ => false,
+            },
         }
     }
 
@@ -248,6 +261,7 @@ impl RoleEnum {
             RoleEnum::Upgrader(status) => status.action_status = action,
             RoleEnum::Builder(status) => status.action_status = action,
             RoleEnum::Porter(status) => status.action_status = action,
+            RoleEnum::Repairer(status) => status.action_status = action,
         }
     }
 }
@@ -259,6 +273,7 @@ pub enum RoleAction {
     Upgrader(CreepProp),
     Builder(CreepProp),
     Porter(CreepProp),
+    Repairer(CreepProp),
 }
 
 impl RoleAction {
@@ -268,6 +283,7 @@ impl RoleAction {
             RoleEnum::Upgrader(_) => RoleAction::Upgrader(prop),
             RoleEnum::Builder(_) => RoleAction::Builder(prop),
             RoleEnum::Porter(_) => RoleAction::Porter(prop),
+            RoleEnum::Repairer(_) => RoleAction::Repairer(prop),
         }
     }
 
@@ -302,6 +318,15 @@ impl RoleAction {
             }
             RoleAction::Porter(prop) => {
                 let mut role = porter::Porter::new(prop.clone());
+                match role.run() {
+                    Ok(_) => {}
+                    Err(e) => {
+                        warn!("{:?}", e);
+                    }
+                };
+            }
+            RoleAction::Repairer(prop) => {
+                let mut role = repairer::Repairer::new(prop.clone());
                 match role.run() {
                     Ok(_) => {}
                     Err(e) => {

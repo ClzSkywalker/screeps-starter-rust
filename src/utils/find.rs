@@ -86,12 +86,36 @@ impl FindStoreOption {
             select_structures: Some(vec![
                 StructureType::Spawn,
                 StructureType::Extension,
+                StructureType::Tower,
                 StructureType::Storage,
+                StructureType::Wall,
             ]),
             priority: Some(vec![
                 StructureType::Extension,
                 StructureType::Spawn,
+                StructureType::Tower,
                 StructureType::Storage,
+                StructureType::Wall,
+            ]),
+            range: None,
+        }
+    }
+
+    pub fn repairer_down() -> Self {
+        Self {
+            resource_type: Some(ResourceType::Energy),
+            status: FindStoreStatus::FreeCapacity,
+            withdraw: false,
+            ignore_structures: Default::default(),
+            select_structures: Some(vec![
+                StructureType::Tower,
+                StructureType::Road,
+                StructureType::Wall,
+            ]),
+            priority: Some(vec![
+                StructureType::Tower,
+                StructureType::Road,
+                StructureType::Wall,
             ]),
             range: None,
         }
