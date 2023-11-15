@@ -20,7 +20,7 @@ pub fn setup() {
 // to use a reserved name as a function name, use `js_name`:
 #[wasm_bindgen(js_name = loop)]
 pub fn game_loop() {
-    global::global_init();
+    global::global_init(true);
     global::global_check();
 
     for creep in game::creeps().values() {
@@ -46,7 +46,13 @@ pub fn game_loop() {
         if !spawing {
             continue;
         }
-        let body = [Part::Move, Part::Carry, Part::Work, Part::Work];
+        let room = spawn.room().unwrap();
+        let ext_count = utils::find::get_extension_count(&room).len();
+        let mut body = vec![Part::Move, Part::Carry, Part::Work, Part::Work];
+
+        if ext_count > 2 {
+            body.append(&mut vec![Part::Move, Part::Carry]);
+        }
 
         if spawn.room().unwrap().energy_available() >= body.iter().map(|p| p.cost()).sum() {
             // create a unique name, spawn.

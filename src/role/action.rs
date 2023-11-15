@@ -98,6 +98,37 @@ pub trait ICreepAction {
         if !prop.ctx.role.check(ActionStatus::PickUp) {
             return Ok(None);
         }
+        if let Some(site) = utils::find::find_tombstone(&prop.creep, &prop.room) {
+            match prop.creep.withdraw(&site, ResourceType::Energy, None) {
+                Ok(_) => {
+                    prop.ctx.role.change_action(ActionStatus::PickUp);
+                    return Ok(Some(()));
+                }
+                Err(e) => match e {
+                    ErrorCode::NotInRange => {
+                        prop.ctx.role.change_action(ActionStatus::PickUp);
+                        match utils::line::route_option(
+                            &prop.creep,
+                            &site,
+                            utils::line::LineStatus::Harvesting,
+                        ) {
+                            Ok(_) => {
+                                return Ok(Some(()));
+                            }
+                            Err(e) => {
+                                warn!("{:?}", e);
+                                return Err(ScreepError::ScreepInner.into());
+                            }
+                        }
+                    }
+                    _ => {
+                        warn!("{:?}", e);
+                        return Err(ScreepError::ScreepInner.into());
+                    }
+                },
+            }
+        };
+
         if let Some(site) = utils::find::find_drop_resource(&prop.creep, &prop.room) {
             match prop.creep.pickup(&site) {
                 Ok(_) => {

@@ -17,22 +17,19 @@ thread_local! {
     pub static SOURCE_MANAGER: RefCell<SourceManager> = RefCell::new(SourceManager::new());
 }
 
-pub fn global_init() {
+/// 初始化缓存
+///
+/// * `clear_memory`: 是否清理缓存重新计算
+pub fn global_init(clear_memory: bool) {
     CELL.with(|item| {
         item.get_or_init(|| {
             MEMORY_MANAGER.with(|memory_map| {
                 let mut memory_map = memory_map.borrow_mut();
                 for room in game::rooms().values() {
                     let mut room_memory = RoomMemory::new(room.name().to_string());
-                    room_memory.init();
+                    room_memory.init(clear_memory);
                     memory_map.add_room(room_memory);
                 }
-                memory_map.room_item.retain(|key, _| {
-                    if key == "E57N41" {
-                        return false;
-                    }
-                    true
-                });
 
                 let room_creeps: Vec<RoomScreepsItem> = memory_map
                     .room_item

@@ -49,7 +49,7 @@ impl RoomMemory {
     }
 
     // 如果房间memory存在加载，不存在则初始化
-    pub fn init(&mut self) {
+    pub fn init(&mut self, clear_memory: bool) {
         let room = match RoomName::from_str(&self.room_id) {
             Ok(r) => r,
             Err(e) => {
@@ -66,22 +66,27 @@ impl RoomMemory {
         };
         let mut room_screep = RoomScreepsItem::new(self.room_id.clone());
         let mut room_source = RoomSourceItem::new(self.room_id.clone());
-        match room.memory().as_string() {
-            Some(memory_str) => match serde_json::from_str(memory_str.as_str()) {
-                //memory_str.as_str()
-                Ok(r) => {
-                    let tmp: RoomMemory = r;
-                    room_source = tmp.source_info;
-                }
-                Err(e) => {
-                    warn!("{:?},json:{}", e, memory_str.as_str());
+        if clear_memory {
+            let _ = room_source.init();
+        } else {
+            match room.memory().as_string() {
+                Some(memory_str) => match serde_json::from_str(memory_str.as_str()) {
+                    //memory_str.as_str()
+                    Ok(r) => {
+                        let tmp: RoomMemory = r;
+                        room_source = tmp.source_info;
+                    }
+                    Err(e) => {
+                        warn!("{:?},json:{}", e, memory_str.as_str());
+                        let _ = room_source.init();
+                    }
+                },
+                None => {
                     let _ = room_source.init();
                 }
-            },
-            None => {
-                let _ = room_source.init();
-            }
-        };
+            };
+        }
+
         let _ = room_screep.init();
         self.creeps_info = room_screep;
         self.source_info = room_source;

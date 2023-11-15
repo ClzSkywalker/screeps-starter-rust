@@ -231,7 +231,11 @@ impl SourceInfoItem {
             })
             .count();
 
-        let max_count: usize = 9 - count;
+        let mut max_count: usize = 9 - count;
+        if max_count > 3 {
+            max_count = 3
+        }
+
         Self {
             source_id: item.id().to_string(),
             creeps: Vec::default(),

@@ -5,7 +5,7 @@ use screeps::{
     look::{self, PositionedLookResult},
     prelude::*,
     ConstructionSite, Creep, ObjectId, Position, Resource, ResourceType, Room, RoomName, Source,
-    StructureController, StructureObject, StructureType,
+    StructureController, StructureExtension, StructureObject, StructureType, Tombstone,
 };
 
 use super::errorx::ScreepError;
@@ -224,6 +224,18 @@ pub fn find_drop_resource(creep: &Creep, room: &Room) -> Option<Resource> {
     get_near_site(creep, &structure_list)
 }
 
+/// 查询死亡后creep的遗物
+///
+/// * `creep`:
+/// * `room`:
+pub fn find_tombstone(creep: &Creep, room: &Room) -> Option<Tombstone> {
+    let mut structure_list: Vec<Tombstone> = Vec::new();
+    for structure in room.find(find::TOMBSTONES, None).iter() {
+        structure_list.push(structure.clone());
+    }
+    get_near_site(creep, &structure_list)
+}
+
 pub fn find_site(creep: &Creep, room: &Room) -> Option<ConstructionSite> {
     let mut structure_list: Vec<ConstructionSite> = Vec::new();
     for structure in room.find(find::MY_CONSTRUCTION_SITES, None).iter() {
@@ -231,6 +243,16 @@ pub fn find_site(creep: &Creep, room: &Room) -> Option<ConstructionSite> {
         // return Some(structure.clone());
     }
     get_near_site(creep, &structure_list)
+}
+
+pub fn get_extension_count(room: &Room) -> Vec<StructureExtension> {
+    let mut structure_list: Vec<StructureExtension> = Vec::new();
+    for structure in room.find(find::STRUCTURES, None).iter() {
+        if let StructureObject::StructureExtension(s) = structure {
+            structure_list.push(s.clone());
+        }
+    }
+    structure_list
 }
 
 /// 查询对应类型建筑物数目
