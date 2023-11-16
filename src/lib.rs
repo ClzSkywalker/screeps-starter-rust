@@ -6,9 +6,10 @@ use wasm_bindgen::prelude::*;
 
 mod global;
 mod logging;
+mod manager;
 mod model;
 mod role;
-mod source;
+mod structure;
 mod utils;
 
 // add wasm_bindgen to any function you would like to expose for call from js
@@ -40,30 +41,29 @@ pub fn game_loop() {
     global::SCREEP_MANAGER.with(|manager| {
         let manager = manager.borrow();
         for spawn in game::spawns().values() {
-            let spawing = manager.can_spawing(spawn.room().unwrap().name().to_string());
-            // log::info!("can_spaw:{}",spawing);
-            if !spawing {
-                continue;
-            }
             let room = spawn.room().unwrap();
             let ext_count = utils::find::get_extension_count(&room).len();
             let mut body = vec![Part::Move, Part::Carry, Part::Work, Part::Work];
-            if ext_count >= 5 {
-                body.append(&mut vec![
-                    Part::Move,
-                    Part::Carry,
-                    Part::Work,
-                    Part::Tough,
-                    Part::Tough,
-                    Part::Tough,
-                    Part::Tough,
-                    Part::Tough,
-                ]);
-            } else if ext_count >= 4 {
+            if ext_count >= 6 {
+                body.append(&mut vec![Part::Carry, Part::Move, Part::Carry, Part::Work]);
+            }
+            if ext_count >= 4 {
                 body.append(&mut vec![Part::Move, Part::Carry, Part::Work]);
             } else if ext_count > 2 {
                 body.append(&mut vec![Part::Move, Part::Carry]);
             }
+            let consum = body.iter().map(|p| p.cost()).sum();
+            // 能量不足
+            if spawn.room().unwrap().energy_available() < consum {
+                continue;
+            }
+
+            // 不允许生产
+            let spawing = manager.can_spawing(spawn.room().unwrap().name().to_string());
+            if !spawing {
+                continue;
+            }
+
             if spawn.room().unwrap().energy_available() >= body.iter().map(|p| p.cost()).sum() {
                 // create a unique name, spawn.
                 let name_base = game::time();
@@ -79,4 +79,6 @@ pub fn game_loop() {
     });
 
     global::save_memory();
+    log::info!("cpu:{}", game::cpu::get_used());
 }
+

@@ -61,6 +61,15 @@ pub enum ActionStatus {
     // 升级
     #[strum(serialize = "🔥")]
     Upgrade,
+    // 修复
+    #[strum(serialize = "💉")]
+    Repair,
+    // 塔攻击
+    #[strum(serialize = "🧨")]
+    TowerAttack,
+    // 塔修复
+    #[strum(serialize = "💉")]
+    TowerRepair,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -94,17 +103,11 @@ pub enum CreepStatus {
     #[default]
     #[strum(serialize = "☹")]
     SourceNotfound,
-    // 收割中
+    // 使用能量
     #[strum(serialize = "⛏️")]
-    Harversting,
-    // 建造中🚧 build
+    UseEnergy,
+    // 寻找能量
     #[strum(serialize = "🚧")]
-    Building,
-    // 到容器中寻找能量
-    #[strum(serialize = "🐛")]
-    CarryUp,
-    // 把能量放下
-    #[strum(serialize = "🐌")]
-    CarryDown,
+    FindEnergy,
 }
 

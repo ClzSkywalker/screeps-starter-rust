@@ -1,4 +1,3 @@
-use log::*;
 use screeps::{ErrorCode, ResourceType, SharedCreepProperties};
 use wasm_bindgen::JsValue;
 
@@ -16,12 +15,12 @@ pub trait ICreepAction {
 
     fn say(&self) {
         let prop = self.get_creep();
-        if let Some(e) = prop
-            .creep
-            .say(prop.ctx.role.get_say_test().as_str(), false)
-            .err()
-        {
-            warn!("{:?}", e);
+        let text = prop.ctx.role.get_say_test();
+        if text.is_empty() {
+            return;
+        }
+        if let Some(e) = prop.creep.say(text.as_str(), false).err() {
+            log::warn!("{:?}", e);
         };
     }
 
@@ -77,13 +76,13 @@ pub trait ICreepAction {
                         ) {
                             Ok(_) => return Ok(Some(())),
                             Err(e) => {
-                                warn!("{:?}", e);
+                                log::warn!("{:?}", e);
                                 return Err(ScreepError::ScreepInner.into());
                             }
                         }
                     }
                     _ => {
-                        warn!("{:?}", e);
+                        log::warn!("{:?}", e);
                         return Err(ScreepError::ScreepInner.into());
                     }
                 },
@@ -116,13 +115,13 @@ pub trait ICreepAction {
                                 return Ok(Some(()));
                             }
                             Err(e) => {
-                                warn!("{:?}", e);
+                                log::warn!("{:?}", e);
                                 return Err(ScreepError::ScreepInner.into());
                             }
                         }
                     }
                     _ => {
-                        warn!("{:?}", e);
+                        log::warn!("{:?}", e);
                         return Err(ScreepError::ScreepInner.into());
                     }
                 },
@@ -147,13 +146,13 @@ pub trait ICreepAction {
                                 return Ok(Some(()));
                             }
                             Err(e) => {
-                                warn!("{:?}", e);
+                                log::warn!("{:?}", e);
                                 return Err(ScreepError::ScreepInner.into());
                             }
                         }
                     }
                     _ => {
-                        warn!("{:?}", e);
+                        log::warn!("{:?}", e);
                         return Err(ScreepError::ScreepInner.into());
                     }
                 },
@@ -186,13 +185,13 @@ pub trait ICreepAction {
                                 return Ok(Some(()));
                             }
                             Err(e) => {
-                                warn!("{:?}", e);
+                                log::warn!("{:?}", e);
                                 return Err(ScreepError::ScreepInner.into());
                             }
                         }
                     }
                     _ => {
-                        warn!("{:?}", e);
+                        log::warn!("{:?}", e);
                         return Err(ScreepError::ScreepInner.into());
                     }
                 },
@@ -208,47 +207,41 @@ pub trait ICreepAction {
             return Ok(None);
         }
 
-        if let Some(site) = utils::find::find_controller(&prop.room) {
-            match site.resolve() {
-                Some(controller) => match prop.creep.upgrade_controller(&controller) {
-                    Ok(_) => {
+        if let Some(controller) = utils::find::find_controller(&prop.room) {
+            match prop.creep.upgrade_controller(&controller) {
+                Ok(_) => {
+                    prop.ctx.role.change_action(ActionStatus::Upgrade);
+                    return Ok(Some(()));
+                }
+                Err(e) => match e {
+                    ErrorCode::NotInRange => {
                         prop.ctx.role.change_action(ActionStatus::Upgrade);
-                        return Ok(Some(()));
-                    }
-                    Err(e) => match e {
-                        ErrorCode::NotInRange => {
-                            prop.ctx.role.change_action(ActionStatus::Upgrade);
-                            match utils::line::route_option(
-                                &prop.creep,
-                                &controller,
-                                utils::line::LineStatus::Building,
-                            ) {
-                                Ok(_) => {
-                                    return Ok(Some(()));
-                                }
-                                Err(e) => {
-                                    warn!("{:?}", e);
-                                    return Err(ScreepError::ScreepInner.into());
-                                }
+                        match utils::line::route_option(
+                            &prop.creep,
+                            &controller,
+                            utils::line::LineStatus::Building,
+                        ) {
+                            Ok(_) => {
+                                return Ok(Some(()));
+                            }
+                            Err(e) => {
+                                log::warn!("{:?}", e);
+                                return Err(ScreepError::ScreepInner.into());
                             }
                         }
-                        _ => {
-                            warn!("{:?}", e);
-                            return Err(ScreepError::ScreepInner.into());
-                        }
-                    },
+                    }
+                    _ => {
+                        log::warn!("{:?}", e);
+                        return Err(ScreepError::ScreepInner.into());
+                    }
                 },
-                None => {
-                    warn!("{}", ScreepError::RoomNotfound(site.to_string()));
-                    return Err(ScreepError::RoomNotfound(site.to_string()).into());
-                }
             }
         };
         Ok(None)
     }
 
     /// 将资源存储进容器
-    fn carry_down(&mut self, option: Option<FindStoreOption>) -> anyhow::Result<Option<()>> {
+    fn transfer(&mut self, option: Option<FindStoreOption>) -> anyhow::Result<Option<()>> {
         let prop = self.get_creep_mut();
         if !prop.ctx.role.check(ActionStatus::CarryDown) {
             return Ok(None);
@@ -272,13 +265,13 @@ pub trait ICreepAction {
                                     return Ok(Some(()));
                                 }
                                 Err(e) => {
-                                    warn!("{:?}", e);
+                                    log::warn!("{:?}", e);
                                     return Err(ScreepError::ScreepInner.into());
                                 }
                             }
                         }
                         _ => {
-                            warn!("{:?}", e);
+                            log::warn!("{:?}", e);
                             return Err(ScreepError::ScreepInner.into());
                         }
                     },
@@ -289,7 +282,7 @@ pub trait ICreepAction {
     }
 
     /// 从存储点取能量
-    fn carry_up(&mut self) -> anyhow::Result<Option<()>> {
+    fn withdraw(&mut self) -> anyhow::Result<Option<()>> {
         let prop = self.get_creep_mut();
         if !prop.ctx.role.check(ActionStatus::CarryUp) {
             return Ok(None);
@@ -300,16 +293,7 @@ pub trait ICreepAction {
             utils::find::find_store(&prop.creep, &prop.room, Some(FindStoreOption::carry_up()))
         {
             if let Some(store) = structure.as_withdrawable() {
-                match prop.creep.withdraw(
-                    store,
-                    ResourceType::Energy,
-                    Some(
-                        prop.creep
-                            .store()
-                            .get_free_capacity(None)
-                            as u32,
-                    ),
-                ) {
+                match prop.creep.withdraw(store, ResourceType::Energy, None) {
                     Ok(_) => {
                         prop.ctx.role.change_action(ActionStatus::CarryUp);
                         return Ok(Some(()));
@@ -324,13 +308,13 @@ pub trait ICreepAction {
                             ) {
                                 Ok(_) => return Ok(Some(())),
                                 Err(e) => {
-                                    warn!("{:?}", e);
+                                    log::warn!("{:?}", e);
                                     return Err(ScreepError::ScreepInner.into());
                                 }
                             }
                         }
                         _ => {
-                            error!("{:?}", e);
+                            log::error!("{:?}", e);
                             return Err(ScreepError::ScreepInner.into());
                         }
                     },
@@ -339,4 +323,43 @@ pub trait ICreepAction {
         };
         Ok(None)
     }
+
+    /// 使用携带的能量修复受损建筑。需要 WORK 和 CARRY 身体部件。目标必须位于以 creep 为中心的 7*7 正方形区域内。
+    fn repair(&mut self) -> anyhow::Result<Option<()>> {
+        let prop = self.get_creep_mut();
+        if !prop.ctx.role.check(ActionStatus::Repair) {
+            return Ok(None);
+        }
+        let strucutrs = utils::find::find_need_repair(&prop.room);
+        match utils::find::get_near_site(&prop.creep, &strucutrs) {
+            Some(site) => match prop.creep.repair(site.as_structure()) {
+                Ok(_) => {
+                    prop.ctx.role.change_action(ActionStatus::CarryUp);
+                    Ok(Some(()))
+                }
+                Err(e) => match e {
+                    ErrorCode::NotInRange => {
+                        prop.ctx.role.change_action(ActionStatus::CarryUp);
+                        match utils::line::route_option(
+                            &prop.creep,
+                            &site.as_structure(),
+                            utils::line::LineStatus::Carry,
+                        ) {
+                            Ok(_) => Ok(Some(())),
+                            Err(e) => {
+                                log::warn!("{:?}", e);
+                                Err(ScreepError::ScreepInner.into())
+                            }
+                        }
+                    }
+                    _ => {
+                        log::error!("{:?}", e);
+                        Err(ScreepError::ScreepInner.into())
+                    }
+                },
+            },
+            None => Ok(None),
+        }
+    }
 }
+

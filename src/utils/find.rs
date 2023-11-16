@@ -4,7 +4,7 @@ use screeps::{
     find, game,
     look::{self, PositionedLookResult},
     prelude::*,
-    ConstructionSite, Creep, ObjectId, Position, Resource, ResourceType, Room, RoomName, Source,
+    ConstructionSite, Creep, Position, Resource, ResourceType, Room, RoomName, Source,
     StructureController, StructureExtension, StructureObject, StructureType, Tombstone,
 };
 
@@ -21,13 +21,13 @@ pub fn find_source_all(room: &Room) -> Vec<Source> {
     target
 }
 
-pub fn find_controller(room: &Room) -> Option<ObjectId<StructureController>> {
+pub fn find_controller(room: &Room) -> Option<StructureController> {
     for structure in room.find(find::STRUCTURES, None).iter() {
         if let StructureObject::StructureController(controller) = structure {
             if !controller.my() {
                 continue;
             }
-            return Some(controller.id());
+            return Some(controller.clone());
         }
     }
     None
@@ -127,7 +127,7 @@ impl FindStoreOption {
             resource_type: Some(ResourceType::Energy),
             status: FindStoreStatus::FreeCapacity,
             withdraw: false,
-            ignore_structures: vec![],
+            ignore_structures: vec![StructureType::Spawn],
             select_structures: None,
             priority: None,
             range: Some(10),
@@ -231,7 +231,11 @@ pub fn find_drop_resource(creep: &Creep, room: &Room) -> Option<Resource> {
 pub fn find_tombstone(creep: &Creep, room: &Room) -> Option<Tombstone> {
     let mut structure_list: Vec<Tombstone> = Vec::new();
     for structure in room.find(find::TOMBSTONES, None).iter() {
-        if structure.store().get_used_capacity(Some(ResourceType::Energy))>0{
+        if structure
+            .store()
+            .get_used_capacity(Some(ResourceType::Energy))
+            > 0
+        {
             structure_list.push(structure.clone());
         }
     }
@@ -255,6 +259,19 @@ pub fn get_extension_count(room: &Room) -> Vec<StructureExtension> {
         }
     }
     structure_list
+}
+
+/// 需要修理的建筑物
+///
+/// * `room`:
+pub fn find_need_repair(room: &Room) -> Vec<StructureObject> {
+    room.find(find::STRUCTURES, None)
+        .into_iter()
+        .filter(|item| {
+            let item = item.as_structure();
+            item.hits_max() - item.hits() > 100
+        })
+        .collect()
 }
 
 /// 查询对应类型建筑物数目

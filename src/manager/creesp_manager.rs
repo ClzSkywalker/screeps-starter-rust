@@ -1,6 +1,8 @@
 use std::{collections::HashMap, str::FromStr};
 
-use screeps::{game, Creep, RoomName, SharedCreepProperties};
+use screeps::{
+    find, game, Creep, RoomName, SharedCreepProperties, StructureProperties, StructureType,
+};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
 
@@ -115,6 +117,20 @@ impl RoomScreepsItem {
                 max_count = m.max_count;
             }
         });
+        if let Ok(room) = utils::find::find_room(self.room_id.clone()) {
+            if let Some(c) = utils::find::find_controller(&room) {
+                if c.level() <= 2 && self.harvester < max_count {
+                    return true;
+                } else if c.level() <= 2 {
+                    return room
+                        .find(find::STRUCTURES, None)
+                        .iter()
+                        .filter(|item| item.structure_type() == StructureType::Container)
+                        .count()
+                        > 0;
+                }
+            }
+        }
         self.harvester + self.upgrader + self.builder + self.porter + self.repairer < max_count * 5
     }
 
@@ -203,9 +219,10 @@ impl RoomScreepsItem {
             Err(e) => return Err(e.into()),
         };
 
-        if self.harvester == 0 {
+        if self.harvester < room_source_info.max_count {
             return Ok(RoleEnum::Harvester(RoleStatus::default()).default());
         }
+
         if self.porter == 0 {
             return Ok(RoleEnum::Porter(RoleStatus::default()).default());
         }
@@ -215,9 +232,7 @@ impl RoomScreepsItem {
         if self.builder == 0 {
             return Ok(RoleEnum::Builder(RoleStatus::default()).default());
         }
-        if self.harvester < room_source_info.max_count {
-            return Ok(RoleEnum::Harvester(RoleStatus::default()).default());
-        }
+
         if self.repairer == 0 {
             return Ok(RoleEnum::Repairer(RoleStatus::default()).default());
         }
@@ -245,3 +260,4 @@ impl RoomScreepsItem {
         }
     }
 }
+

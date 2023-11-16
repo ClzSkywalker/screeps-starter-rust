@@ -24,7 +24,7 @@ impl IRoleAction for Upgrader {
     }
 
     fn work_line(&mut self) -> anyhow::Result<()> {
-        match self.carry_up() {
+        match self.withdraw() {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());

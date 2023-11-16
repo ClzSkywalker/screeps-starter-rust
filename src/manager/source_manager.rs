@@ -232,8 +232,8 @@ impl SourceInfoItem {
             .count();
 
         let mut max_count: usize = 9 - count;
-        if max_count > 3 {
-            max_count = 3
+        if max_count > 2 {
+            max_count = 2
         }
 
         Self {

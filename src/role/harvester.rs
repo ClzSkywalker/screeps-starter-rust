@@ -39,7 +39,7 @@ impl IRoleAction for Harvester {
             }
         }
 
-        match self.carry_up() {
+        match self.withdraw() {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
@@ -52,7 +52,7 @@ impl IRoleAction for Harvester {
             }
         }
 
-        match self.carry_down(Some(find::FindStoreOption::harvester_store())) {
+        match self.transfer(Some(find::FindStoreOption::harvester_store())) {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
@@ -108,7 +108,7 @@ impl IRoleAction for Harvester {
             })
             .count();
             if count > 0 {
-                match self.carry_down(Some(find::FindStoreOption::carry_down())) {
+                match self.transfer(Some(find::FindStoreOption::carry_down())) {
                     Ok(r) => {
                         if r.is_some() {
                             return Ok(());

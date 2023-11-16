@@ -28,12 +28,12 @@ pub trait IRoleAction: ICreepAction {
 
         self.set_status();
 
-        self.say();
-
         if let Err(e) = self.work_line() {
             warn!("{:?}", e);
             return Err(e);
         }
+
+        self.say();
         self.set_memory();
 
         Ok(())
@@ -97,6 +97,8 @@ impl RoleEnum {
         }
     }
 
+    /// say文字：角色+行为
+    #[allow(dead_code)]
     pub fn get_say_test(&self) -> String {
         let status = match self {
             RoleEnum::Harvester(status) => status.clone(),
@@ -105,6 +107,9 @@ impl RoleEnum {
             RoleEnum::Porter(status) => status.clone(),
             RoleEnum::Repairer(status) => status.clone(),
         };
+        if status.action_status != ActionStatus::NoWork {
+            return String::new();
+        }
         return self.to_string() + status.action_status.to_string().as_str();
     }
 
@@ -126,13 +131,13 @@ impl RoleEnum {
             RoleEnum::Harvester(status) => {
                 if !matches!(
                     status.creep_status,
-                    CreepStatus::Harversting | CreepStatus::Building | CreepStatus::SourceNotfound
+                    CreepStatus::UseEnergy | CreepStatus::FindEnergy | CreepStatus::SourceNotfound
                 ) {
-                    status.creep_status = CreepStatus::Harversting
+                    status.creep_status = CreepStatus::FindEnergy
                 } else {
                     match store_status {
-                        StoreStatus::Full => status.creep_status = CreepStatus::Building,
-                        StoreStatus::Empty => status.creep_status = CreepStatus::Harversting,
+                        StoreStatus::Full => status.creep_status = CreepStatus::UseEnergy,
+                        StoreStatus::Empty => status.creep_status = CreepStatus::FindEnergy,
                         _ => {}
                     }
                 }
@@ -140,13 +145,13 @@ impl RoleEnum {
             RoleEnum::Upgrader(status) => {
                 if !matches!(
                     status.creep_status,
-                    CreepStatus::Building | CreepStatus::CarryUp | CreepStatus::SourceNotfound
+                    CreepStatus::UseEnergy | CreepStatus::FindEnergy | CreepStatus::SourceNotfound
                 ) {
-                    status.creep_status = CreepStatus::CarryUp
+                    status.creep_status = CreepStatus::FindEnergy
                 } else {
                     match store_status {
-                        StoreStatus::Full => status.creep_status = CreepStatus::Building,
-                        StoreStatus::Empty => status.creep_status = CreepStatus::CarryUp,
+                        StoreStatus::Full => status.creep_status = CreepStatus::UseEnergy,
+                        StoreStatus::Empty => status.creep_status = CreepStatus::FindEnergy,
                         _ => {}
                     }
                 }
@@ -154,13 +159,13 @@ impl RoleEnum {
             RoleEnum::Builder(status) => {
                 if !matches!(
                     status.creep_status,
-                    CreepStatus::Building | CreepStatus::CarryUp | CreepStatus::SourceNotfound
+                    CreepStatus::UseEnergy | CreepStatus::FindEnergy | CreepStatus::SourceNotfound
                 ) {
-                    status.creep_status = CreepStatus::CarryUp
+                    status.creep_status = CreepStatus::FindEnergy
                 } else {
                     match store_status {
-                        StoreStatus::Full => status.creep_status = CreepStatus::Building,
-                        StoreStatus::Empty => status.creep_status = CreepStatus::CarryUp,
+                        StoreStatus::Full => status.creep_status = CreepStatus::UseEnergy,
+                        StoreStatus::Empty => status.creep_status = CreepStatus::FindEnergy,
                         _ => {}
                     }
                 }
@@ -168,13 +173,13 @@ impl RoleEnum {
             RoleEnum::Porter(status) => {
                 if !matches!(
                     status.creep_status,
-                    CreepStatus::CarryUp | CreepStatus::CarryDown | CreepStatus::SourceNotfound
+                    CreepStatus::UseEnergy | CreepStatus::FindEnergy | CreepStatus::SourceNotfound
                 ) {
-                    status.creep_status = CreepStatus::CarryUp
+                    status.creep_status = CreepStatus::FindEnergy
                 } else {
                     match store_status {
-                        StoreStatus::Full => status.creep_status = CreepStatus::CarryDown,
-                        StoreStatus::Empty => status.creep_status = CreepStatus::CarryUp,
+                        StoreStatus::Full => status.creep_status = CreepStatus::UseEnergy,
+                        StoreStatus::Empty => status.creep_status = CreepStatus::FindEnergy,
                         _ => {}
                     }
                 }
@@ -182,13 +187,13 @@ impl RoleEnum {
             RoleEnum::Repairer(status) => {
                 if !matches!(
                     status.creep_status,
-                    CreepStatus::CarryUp | CreepStatus::Building | CreepStatus::SourceNotfound
+                    CreepStatus::UseEnergy | CreepStatus::FindEnergy | CreepStatus::SourceNotfound
                 ) {
-                    status.creep_status = CreepStatus::CarryUp
+                    status.creep_status = CreepStatus::FindEnergy
                 } else {
                     match store_status {
-                        StoreStatus::Full => status.creep_status = CreepStatus::Building,
-                        StoreStatus::Empty => status.creep_status = CreepStatus::CarryUp,
+                        StoreStatus::Full => status.creep_status = CreepStatus::UseEnergy,
+                        StoreStatus::Empty => status.creep_status = CreepStatus::FindEnergy,
                         _ => {}
                     }
                 }
@@ -200,60 +205,54 @@ impl RoleEnum {
         match self {
             RoleEnum::Harvester(status) => match action {
                 ActionStatus::Harversting | ActionStatus::CarryUp => {
-                    matches!(status.creep_status, CreepStatus::Harversting)
+                    matches!(status.creep_status, CreepStatus::FindEnergy)
                 }
                 ActionStatus::Upgrade | ActionStatus::Building | ActionStatus::CarryDown => {
-                    matches!(status.creep_status, CreepStatus::Building)
+                    matches!(status.creep_status, CreepStatus::UseEnergy)
                 }
                 _ => false,
             },
             RoleEnum::Upgrader(status) => match action {
                 ActionStatus::CarryUp => {
-                    matches!(status.creep_status, CreepStatus::CarryUp)
+                    matches!(status.creep_status, CreepStatus::FindEnergy)
                 }
                 ActionStatus::Building | ActionStatus::Upgrade => {
-                    matches!(status.creep_status, CreepStatus::Building)
+                    matches!(status.creep_status, CreepStatus::UseEnergy)
                 }
                 _ => false,
             },
             RoleEnum::Builder(status) => match action {
                 ActionStatus::CarryUp => {
-                    matches!(status.creep_status, CreepStatus::CarryUp)
+                    matches!(status.creep_status, CreepStatus::FindEnergy)
                 }
                 ActionStatus::Building | ActionStatus::Upgrade | ActionStatus::CarryDown => {
-                    matches!(status.creep_status, CreepStatus::Building)
+                    matches!(status.creep_status, CreepStatus::UseEnergy)
                 }
                 _ => false,
             },
             RoleEnum::Porter(status) => match action {
                 ActionStatus::CarryUp | ActionStatus::PickUp => {
-                    matches!(status.creep_status, CreepStatus::CarryUp)
+                    matches!(status.creep_status, CreepStatus::FindEnergy)
                 }
                 ActionStatus::CarryDown | ActionStatus::Building | ActionStatus::Upgrade => {
-                    matches!(status.creep_status, CreepStatus::CarryDown)
+                    matches!(status.creep_status, CreepStatus::UseEnergy)
                 }
                 _ => false,
             },
             RoleEnum::Repairer(status) => match action {
                 ActionStatus::CarryUp => {
-                    matches!(status.creep_status, CreepStatus::CarryUp)
+                    matches!(status.creep_status, CreepStatus::FindEnergy)
                 }
-                ActionStatus::CarryDown | ActionStatus::Building | ActionStatus::Upgrade => {
-                    matches!(status.creep_status, CreepStatus::Building)
+                ActionStatus::Repair
+                | ActionStatus::CarryDown
+                | ActionStatus::Building
+                | ActionStatus::Upgrade => {
+                    matches!(status.creep_status, CreepStatus::UseEnergy)
                 }
                 _ => false,
             },
         }
     }
-
-    // pub fn change_creep_status(&mut self, creep_status: CreepStatus) {
-    //     match self {
-    //         RoleEnum::Harvester(status) => status.creep_status = creep_status,
-    //         RoleEnum::Upgrader(status) => status.creep_status = creep_status,
-    //         RoleEnum::Builder(status) => status.creep_status = creep_status,
-    //         RoleEnum::Porter(status) => status.creep_status = creep_status,
-    //     }
-    // }
 
     pub fn change_action(&mut self, action: ActionStatus) {
         match self {
@@ -337,3 +336,4 @@ impl RoleAction {
         };
     }
 }
+

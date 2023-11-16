@@ -25,7 +25,7 @@ impl IRoleAction for Repairer {
     }
 
     fn work_line(&mut self) -> anyhow::Result<()> {
-        match self.carry_up() {
+        match self.withdraw() {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
@@ -37,7 +37,19 @@ impl IRoleAction for Repairer {
             }
         }
 
-        match self.carry_down(Some(find::FindStoreOption::repairer_down())) {
+        match self.repair() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
+        match self.transfer(Some(find::FindStoreOption::repairer_down())) {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
