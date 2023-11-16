@@ -1,4 +1,4 @@
-use screeps::{ErrorCode, ResourceType, SharedCreepProperties};
+use screeps::{ErrorCode, ResourceType, SharedCreepProperties, StructureType};
 use wasm_bindgen::JsValue;
 
 use crate::{
@@ -330,16 +330,28 @@ pub trait ICreepAction {
         if !prop.ctx.role.check(ActionStatus::Repair) {
             return Ok(None);
         }
-        let strucutrs = utils::find::find_need_repair(&prop.room);
-        match utils::find::get_near_site(&prop.creep, &strucutrs) {
+        let structure_list = utils::find::find_need_repair(&prop.room);
+        let structure_list = utils::find::priority_structure(
+            structure_list,
+            vec![
+                StructureType::Tower,
+                StructureType::Rampart,
+                StructureType::Road,
+                StructureType::Container,
+                StructureType::Extension,
+                StructureType::Storage,
+                StructureType::Wall,
+            ],
+        );
+        match utils::find::priority_die(&structure_list) {
             Some(site) => match prop.creep.repair(site.as_structure()) {
                 Ok(_) => {
-                    prop.ctx.role.change_action(ActionStatus::CarryUp);
+                    prop.ctx.role.change_action(ActionStatus::Repair);
                     Ok(Some(()))
                 }
                 Err(e) => match e {
                     ErrorCode::NotInRange => {
-                        prop.ctx.role.change_action(ActionStatus::CarryUp);
+                        prop.ctx.role.change_action(ActionStatus::Repair);
                         match utils::line::route_option(
                             &prop.creep,
                             &site.as_structure(),

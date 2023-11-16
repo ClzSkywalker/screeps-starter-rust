@@ -65,11 +65,11 @@ pub enum ActionStatus {
     #[strum(serialize = "💉")]
     Repair,
     // 塔攻击
-    #[strum(serialize = "🧨")]
-    TowerAttack,
-    // 塔修复
-    #[strum(serialize = "💉")]
-    TowerRepair,
+    // #[strum(serialize = "🧨")]
+    // TowerAttack,
+    // // 塔修复
+    // #[strum(serialize = "💉")]
+    // TowerRepair,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

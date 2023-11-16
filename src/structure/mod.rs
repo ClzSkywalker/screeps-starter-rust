@@ -1,4 +1,4 @@
-use screeps::{prelude::*, StructureTower};
+use screeps::StructureTower;
 use serde::{Deserialize, Serialize};
 
 pub mod action;
@@ -36,3 +36,4 @@ pub enum StructAction {
     #[strum(serialize = "🗼")]
     Tower(StructureTower),
 }
+

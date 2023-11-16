@@ -117,21 +117,22 @@ impl RoomScreepsItem {
                 max_count = m.max_count;
             }
         });
+        let count2 = self.harvester + self.upgrader + self.builder + self.porter + self.repairer;
         if let Ok(room) = utils::find::find_room(self.room_id.clone()) {
             if let Some(c) = utils::find::find_controller(&room) {
                 if c.level() <= 2 && self.harvester < max_count {
                     return true;
                 } else if c.level() <= 2 {
-                    return room
+                    let count = room
                         .find(find::STRUCTURES, None)
                         .iter()
                         .filter(|item| item.structure_type() == StructureType::Container)
-                        .count()
-                        > 0;
+                        .count();
+                    return 0 < count && count2 < max_count * 5;
                 }
             }
         }
-        self.harvester + self.upgrader + self.builder + self.porter + self.repairer < max_count * 5
+        count2 < max_count * 5
     }
 
     pub fn new(id: String) -> RoomScreepsItem {
@@ -239,15 +240,16 @@ impl RoomScreepsItem {
 
         if self.porter < self.harvester {
             Ok(RoleEnum::Porter(RoleStatus::default()).default())
-        } else if self.builder < self.harvester {
+        } else if self.builder < 2 {
             Ok(RoleEnum::Builder(RoleStatus::default()).default())
-        } else if self.upgrader < self.harvester {
+        } else if self.upgrader < 2 {
             Ok(RoleEnum::Upgrader(RoleStatus::default()).default())
-        } else if self.repairer < self.harvester {
-            Ok(RoleEnum::Repairer(RoleStatus::default()).default())
         } else {
-            Ok(RoleEnum::Upgrader(RoleStatus::default()).default())
+            Ok(RoleEnum::Repairer(RoleStatus::default()).default())
         }
+        // else if self.repairer < 4 {
+        //     Ok(RoleEnum::Repairer(RoleStatus::default()).default())
+        // }
     }
 
     fn add_count(&mut self, role: &RoleEnum) {

@@ -366,3 +366,41 @@ pub fn exist_range(pos1: Position, pos2: Position, range: usize) -> bool {
     ((x + y) as f32).sqrt() <= range as f32
 }
 
+/// 获取优先级高的建筑
+///
+/// * `struct_list`:
+/// * `order`:
+pub fn priority_structure(
+    struct_list: Vec<StructureObject>,
+    order: Vec<StructureType>,
+) -> Vec<StructureObject> {
+    let mut s_map: HashMap<StructureType, Vec<StructureObject>> = HashMap::new();
+    for item in struct_list.iter() {
+        if let Some(s) = s_map.get_mut(&item.structure_type()) {
+            s.push(item.clone());
+            continue;
+        };
+        s_map.insert(item.structure_type(), vec![item.clone()]);
+    }
+    for item in order {
+        if let Some(r) = s_map.get(&item) {
+            if item == StructureType::Wall {
+                return r
+                    .clone()
+                    .into_iter()
+                    .filter(|x| x.as_structure().hits() < 500000)
+                    .collect();
+            }
+            return r.clone();
+        }
+    }
+    struct_list
+}
+
+pub fn priority_die(struct_list: &[StructureObject]) -> Option<StructureObject> {
+    if let Some(y) = struct_list.iter().min_by_key(|x| x.as_structure().hits()) {
+        return Some(y.clone());
+    };
+    None
+}
+

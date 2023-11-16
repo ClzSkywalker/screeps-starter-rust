@@ -98,7 +98,6 @@ impl RoleEnum {
     }
 
     /// say文字：角色+行为
-    #[allow(dead_code)]
     pub fn get_say_test(&self) -> String {
         let status = match self {
             RoleEnum::Harvester(status) => status.clone(),
@@ -205,7 +204,10 @@ impl RoleEnum {
         match self {
             RoleEnum::Harvester(status) => match action {
                 ActionStatus::Harversting | ActionStatus::CarryUp => {
-                    matches!(status.creep_status, CreepStatus::FindEnergy)
+                    matches!(
+                        status.creep_status,
+                        CreepStatus::FindEnergy | CreepStatus::SourceNotfound
+                    )
                 }
                 ActionStatus::Upgrade | ActionStatus::Building | ActionStatus::CarryDown => {
                     matches!(status.creep_status, CreepStatus::UseEnergy)
@@ -214,7 +216,10 @@ impl RoleEnum {
             },
             RoleEnum::Upgrader(status) => match action {
                 ActionStatus::CarryUp => {
-                    matches!(status.creep_status, CreepStatus::FindEnergy)
+                    matches!(
+                        status.creep_status,
+                        CreepStatus::FindEnergy | CreepStatus::SourceNotfound
+                    )
                 }
                 ActionStatus::Building | ActionStatus::Upgrade => {
                     matches!(status.creep_status, CreepStatus::UseEnergy)
@@ -223,7 +228,10 @@ impl RoleEnum {
             },
             RoleEnum::Builder(status) => match action {
                 ActionStatus::CarryUp => {
-                    matches!(status.creep_status, CreepStatus::FindEnergy)
+                    matches!(
+                        status.creep_status,
+                        CreepStatus::FindEnergy | CreepStatus::SourceNotfound
+                    )
                 }
                 ActionStatus::Building | ActionStatus::Upgrade | ActionStatus::CarryDown => {
                     matches!(status.creep_status, CreepStatus::UseEnergy)
@@ -232,7 +240,10 @@ impl RoleEnum {
             },
             RoleEnum::Porter(status) => match action {
                 ActionStatus::CarryUp | ActionStatus::PickUp => {
-                    matches!(status.creep_status, CreepStatus::FindEnergy)
+                    matches!(
+                        status.creep_status,
+                        CreepStatus::FindEnergy | CreepStatus::SourceNotfound
+                    )
                 }
                 ActionStatus::CarryDown | ActionStatus::Building | ActionStatus::Upgrade => {
                     matches!(status.creep_status, CreepStatus::UseEnergy)
@@ -241,7 +252,10 @@ impl RoleEnum {
             },
             RoleEnum::Repairer(status) => match action {
                 ActionStatus::CarryUp => {
-                    matches!(status.creep_status, CreepStatus::FindEnergy)
+                    matches!(
+                        status.creep_status,
+                        CreepStatus::FindEnergy | CreepStatus::SourceNotfound
+                    )
                 }
                 ActionStatus::Repair
                 | ActionStatus::CarryDown
