@@ -2,6 +2,7 @@ use model::ctx::CreepMemory;
 
 use role::{creep::CreepProp, RoleAction};
 use screeps::{constants::Part, game, prelude::*};
+use structure::StructureAction;
 use wasm_bindgen::prelude::*;
 
 mod global;
@@ -44,10 +45,19 @@ pub fn game_loop() {
             let room = spawn.room().unwrap();
             let ext_count = utils::find::get_extension_count(&room).len();
             let mut body = vec![Part::Move, Part::Carry, Part::Work, Part::Work];
-            if ext_count >= 6 {
+            if ext_count >= 10 {
+                body.append(&mut vec![
+                    Part::Carry,
+                    Part::Carry,
+                    Part::Move,
+                    Part::Move,
+                    Part::Carry,
+                    Part::Work,
+                    Part::Work,
+                ]);
+            } else if ext_count >= 6 {
                 body.append(&mut vec![Part::Carry, Part::Move, Part::Carry, Part::Work]);
-            }
-            if ext_count >= 4 {
+            } else if ext_count >= 4 {
                 body.append(&mut vec![Part::Move, Part::Carry, Part::Work]);
             } else if ext_count > 2 {
                 body.append(&mut vec![Part::Move, Part::Carry]);
@@ -61,9 +71,14 @@ pub fn game_loop() {
             // 不允许生产
             let spawing = manager.can_spawing(spawn.room().unwrap().name().to_string());
             if !spawing {
+                // log::info!("can_span:{}", spawing);
                 continue;
             }
-
+            // log::info!(
+            //     "energy:{},custom:{}",
+            //     spawn.room().unwrap().energy_available(),
+            //     body.iter().map(|p| p.cost()).sum()
+            // );
             if spawn.room().unwrap().energy_available() >= body.iter().map(|p| p.cost()).sum() {
                 // create a unique name, spawn.
                 let name_base = game::time();
@@ -78,7 +93,12 @@ pub fn game_loop() {
         }
     });
 
+    for structure in game::structures().values() {
+        if let screeps::StructureObject::StructureTower(tower) = structure {
+            StructureAction::from(tower).run();
+        }
+    }
+
     global::save_memory();
-    log::info!("cpu:{}", game::cpu::get_used());
 }
 

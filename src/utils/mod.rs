@@ -4,9 +4,9 @@ pub mod errorx;
 pub mod find;
 pub mod line;
 
-pub fn remove_expire_screep(param: &mut Vec<String>) {
-    param.retain(|x| check_creep(x.clone()));
-}
+// pub fn remove_expire_screep(param: &mut Vec<String>) {
+//     param.retain(|x| check_creep(x.clone()));
+// }
 
 // pub fn remove_repeat_screep(param: &mut Vec<String>) {
 //     let mut h = HashSet::new();

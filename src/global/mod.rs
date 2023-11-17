@@ -5,7 +5,7 @@ use screeps::game;
 use crate::manager::{
     creesp_manager::{RoomScreepsItem, ScreepManager},
     memory_manager::{RoomMemory, RoomMemoryManager},
-    source_manager::{RoomSourceItem, SourceManager},
+    source_manager::{RoomSourceItem, StructureManager},
 };
 
 thread_local! {
@@ -14,7 +14,7 @@ thread_local! {
     pub static MEMORY_MANAGER:RefCell<RoomMemoryManager> = RefCell::new(RoomMemoryManager::default());
 
     pub static SCREEP_MANAGER: RefCell<ScreepManager> = RefCell::new(ScreepManager::new());
-    pub static SOURCE_MANAGER: RefCell<SourceManager> = RefCell::new(SourceManager::new());
+    pub static SOURCE_MANAGER: RefCell<StructureManager> = RefCell::new(StructureManager::new());
 }
 
 /// 初始化缓存

@@ -52,18 +52,6 @@ impl IRoleAction for Harvester {
             }
         }
 
-        match self.transfer(Some(find::FindStoreOption::harvester_store())) {
-            Ok(r) => {
-                if r.is_some() {
-                    return Ok(());
-                }
-            }
-            Err(e) => {
-                log::warn!("{:?}", e);
-                return Err(e);
-            }
-        }
-
         // 如果 controller 等级小于2，则运输资源给控制器升级
         if self.creep.room.controller().unwrap().level() < 2 {
             match self.upgrade() {
@@ -79,12 +67,12 @@ impl IRoleAction for Harvester {
             }
         }
 
-        // 如果当前creep的数目小于最大挖掘人数，则运输资源到spawn
+        // 如果当前creep的数目小于最大挖掘人数，则运输资源到spawn/ext
         let creep_count = game::creeps().keys().count();
         let create_creep = global::SOURCE_MANAGER.with(|manager| {
             let manager = manager.borrow();
             if let Some(r) = manager.room_item.get(&self.creep.room.name().to_string()) {
-                return creep_count < r.max_count;
+                return creep_count < r.source_count;
             }
             false
         });
@@ -98,17 +86,15 @@ impl IRoleAction for Harvester {
             )
             .iter()
             .filter(|item| match &item.look_result {
-                look::LookResult::Structure(a) => {
-                    if a.clone().structure_type() == StructureType::Spawn {
-                        return true;
-                    }
-                    false
-                }
+                look::LookResult::Structure(a) => matches!(
+                    a.clone().structure_type(),
+                    StructureType::Spawn | StructureType::Extension
+                ),
                 _ => false,
             })
             .count();
             if count > 0 {
-                match self.transfer(Some(find::FindStoreOption::carry_down())) {
+                match self.transfer(Some(find::FindStoreOption::porter_down())) {
                     Ok(r) => {
                         if r.is_some() {
                             return Ok(());
@@ -119,6 +105,18 @@ impl IRoleAction for Harvester {
                         return Err(e);
                     }
                 }
+            }
+        }
+
+        match self.transfer(Some(find::FindStoreOption::harvester_store())) {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                log::warn!("{:?}", e);
+                return Err(e);
             }
         }
 

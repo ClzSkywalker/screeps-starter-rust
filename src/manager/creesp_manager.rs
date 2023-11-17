@@ -110,29 +110,33 @@ pub struct RoomScreepsItem {
 
 impl RoomScreepsItem {
     pub fn can_spawing(&self) -> bool {
-        let mut max_count = 0;
+        let mut harvester_count = 0;
+        let mut rampart_count = 0;
         global::SOURCE_MANAGER.with(|manager| {
             let manager = manager.borrow();
             if let Some(m) = manager.get_memory(self.room_id.clone()) {
-                max_count = m.max_count;
+                harvester_count = m.source_count;
+                rampart_count = m.rampart_count;
             }
         });
-        let count2 = self.harvester + self.upgrader + self.builder + self.porter + self.repairer;
+        let creep_count =
+            self.harvester + self.upgrader + self.builder + self.porter + self.repairer;
         if let Ok(room) = utils::find::find_room(self.room_id.clone()) {
             if let Some(c) = utils::find::find_controller(&room) {
-                if c.level() <= 2 && self.harvester < max_count {
+                if c.level() <= 2 && self.harvester < harvester_count {
                     return true;
                 } else if c.level() <= 2 {
-                    let count = room
+                    let container_count = room
                         .find(find::STRUCTURES, None)
                         .iter()
                         .filter(|item| item.structure_type() == StructureType::Container)
                         .count();
-                    return 0 < count && count2 < max_count * 5;
+                    return container_count > 0
+                        && creep_count < harvester_count * 4 + rampart_count;
                 }
             }
         }
-        count2 < max_count * 5
+        creep_count < harvester_count * 4 + rampart_count
     }
 
     pub fn new(id: String) -> RoomScreepsItem {
@@ -220,7 +224,7 @@ impl RoomScreepsItem {
             Err(e) => return Err(e.into()),
         };
 
-        if self.harvester < room_source_info.max_count {
+        if self.harvester < room_source_info.source_count {
             return Ok(RoleEnum::Harvester(RoleStatus::default()).default());
         }
 
@@ -244,12 +248,11 @@ impl RoomScreepsItem {
             Ok(RoleEnum::Builder(RoleStatus::default()).default())
         } else if self.upgrader < 2 {
             Ok(RoleEnum::Upgrader(RoleStatus::default()).default())
-        } else {
+        } else if self.repairer < room_source_info.rampart_count {
             Ok(RoleEnum::Repairer(RoleStatus::default()).default())
+        } else {
+            Ok(RoleEnum::Builder(RoleStatus::default()).default())
         }
-        // else if self.repairer < 4 {
-        //     Ok(RoleEnum::Repairer(RoleStatus::default()).default())
-        // }
     }
 
     fn add_count(&mut self, role: &RoleEnum) {

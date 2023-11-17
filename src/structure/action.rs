@@ -3,8 +3,7 @@ use screeps::{find, prelude::*, Position, StructureObject};
 use crate::utils::errorx::ScreepError;
 
 pub trait IStructureAction {
-    fn get_creep(&self) -> &StructureObject;
-    fn get_creep_mut(&mut self) -> &mut StructureObject;
+    fn get_site(&self) -> StructureObject;
 
     fn check(&self) -> bool {
         true
@@ -12,8 +11,9 @@ pub trait IStructureAction {
 
     fn set_status(&mut self) {}
 
+    /// 塔攻击
     fn attack(&mut self) -> anyhow::Result<Option<()>> {
-        let site = self.get_creep_mut();
+        let site = self.get_site();
         if let StructureObject::StructureTower(structure) = site {
             let x = Position::x(structure.pos()).u8();
             let y = Position::y(structure.pos()).u8();

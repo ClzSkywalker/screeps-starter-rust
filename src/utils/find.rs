@@ -5,7 +5,8 @@ use screeps::{
     look::{self, PositionedLookResult},
     prelude::*,
     ConstructionSite, Creep, Position, Resource, ResourceType, Room, RoomName, Source,
-    StructureController, StructureExtension, StructureObject, StructureType, Tombstone,
+    StructureController, StructureExtension, StructureObject, StructureRampart, StructureType,
+    Tombstone,
 };
 
 use super::errorx::ScreepError;
@@ -31,6 +32,16 @@ pub fn find_controller(room: &Room) -> Option<StructureController> {
         }
     }
     None
+}
+
+pub fn find_rampart_all(room: &Room) -> Vec<StructureRampart> {
+    let mut target: Vec<StructureRampart> = Vec::new();
+    for structure in room.find(find::STRUCTURES, None).iter() {
+        if let StructureObject::StructureRampart(site) = structure {
+            target.push(site.clone());
+        }
+    }
+    target
 }
 
 #[derive(Default)]
@@ -65,19 +76,23 @@ pub struct FindStoreOption {
 
 impl FindStoreOption {
     // 忽略spawn,extension,并且能够取出
-    pub fn carry_up() -> Self {
+    pub fn porter_up() -> Self {
         Self {
             resource_type: Some(ResourceType::Energy),
             status: FindStoreStatus::UseCapacity,
             withdraw: true,
-            ignore_structures: vec![StructureType::Spawn, StructureType::Extension],
+            ignore_structures: vec![
+                StructureType::Spawn,
+                StructureType::Extension,
+                StructureType::Tower,
+            ],
             select_structures: Default::default(),
             priority: None,
             range: None,
         }
     }
 
-    pub fn carry_down() -> Self {
+    pub fn porter_down() -> Self {
         Self {
             resource_type: Some(ResourceType::Energy),
             status: FindStoreStatus::FreeCapacity,
@@ -397,10 +412,10 @@ pub fn priority_structure(
     struct_list
 }
 
-pub fn priority_die(struct_list: &[StructureObject]) -> Option<StructureObject> {
-    if let Some(y) = struct_list.iter().min_by_key(|x| x.as_structure().hits()) {
-        return Some(y.clone());
-    };
-    None
-}
+// pub fn priority_die(struct_list: &[StructureObject]) -> Option<StructureObject> {
+//     if let Some(y) = struct_list.iter().min_by_key(|x| x.as_structure().hits()) {
+//         return Some(y.clone());
+//     };
+//     None
+// }
 

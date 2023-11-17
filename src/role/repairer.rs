@@ -37,6 +37,18 @@ impl IRoleAction for Repairer {
             }
         }
 
+        match self.repair_rampart() {
+            Ok(r) => {
+                if r.is_some() {
+                    return Ok(());
+                }
+            }
+            Err(e) => {
+                warn!("{:?}", e);
+                return Err(e);
+            }
+        }
+
         match self.repair() {
             Ok(r) => {
                 if r.is_some() {

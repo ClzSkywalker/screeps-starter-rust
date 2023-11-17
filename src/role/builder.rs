@@ -49,7 +49,7 @@ impl IRoleAction for Builder {
             }
         }
 
-        match self.transfer(Some(find::FindStoreOption::carry_down())) {
+        match self.transfer(Some(find::FindStoreOption::porter_down())) {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());

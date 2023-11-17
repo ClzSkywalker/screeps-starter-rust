@@ -1,4 +1,7 @@
-use std::fmt::Display;
+use std::{
+    fmt::Display,
+    ops::{Deref, DerefMut},
+};
 
 use log::warn;
 use serde::{Deserialize, Serialize};
@@ -34,6 +37,7 @@ pub trait IRoleAction: ICreepAction {
         }
 
         self.say();
+        self.cancel_bind_structure();
         self.set_memory();
 
         Ok(())
@@ -65,6 +69,32 @@ pub enum RoleEnum {
     Porter(RoleStatus),
     #[strum(serialize = "💘")]
     Repairer(RoleStatus),
+}
+
+impl Deref for RoleEnum {
+    type Target = RoleStatus;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            RoleEnum::Harvester(s) => s,
+            RoleEnum::Upgrader(s) => s,
+            RoleEnum::Builder(s) => s,
+            RoleEnum::Porter(s) => s,
+            RoleEnum::Repairer(s) => s,
+        }
+    }
+}
+
+impl DerefMut for RoleEnum {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            RoleEnum::Harvester(s) => s,
+            RoleEnum::Upgrader(s) => s,
+            RoleEnum::Builder(s) => s,
+            RoleEnum::Porter(s) => s,
+            RoleEnum::Repairer(s) => s,
+        }
+    }
 }
 
 const HARVESTER: &str = "harvester";
@@ -112,6 +142,17 @@ impl RoleEnum {
         return self.to_string() + status.action_status.to_string().as_str();
     }
 
+    /// 是否取消绑定
+    pub fn is_cancel_bind(&self) -> bool {
+        match self {
+            RoleEnum::Harvester(s) => !matches!(s.action_status, ActionStatus::Harversting),
+            RoleEnum::Upgrader(_) => false,
+            RoleEnum::Builder(_) => false,
+            RoleEnum::Porter(_) => false,
+            RoleEnum::Repairer(s) => !matches!(s.action_status, ActionStatus::Repair),
+        }
+    }
+
     /// 设置下默认角色状态
     pub fn default(&self) -> Self {
         let status = RoleStatus::default();
@@ -128,6 +169,7 @@ impl RoleEnum {
     pub fn reset_status(&mut self, store_status: StoreStatus) {
         match self {
             RoleEnum::Harvester(status) => {
+                status.action_status = ActionStatus::NoWork;
                 if !matches!(
                     status.creep_status,
                     CreepStatus::UseEnergy | CreepStatus::FindEnergy | CreepStatus::SourceNotfound
@@ -142,6 +184,7 @@ impl RoleEnum {
                 }
             }
             RoleEnum::Upgrader(status) => {
+                status.action_status = ActionStatus::NoWork;
                 if !matches!(
                     status.creep_status,
                     CreepStatus::UseEnergy | CreepStatus::FindEnergy | CreepStatus::SourceNotfound
@@ -156,6 +199,7 @@ impl RoleEnum {
                 }
             }
             RoleEnum::Builder(status) => {
+                status.action_status = ActionStatus::NoWork;
                 if !matches!(
                     status.creep_status,
                     CreepStatus::UseEnergy | CreepStatus::FindEnergy | CreepStatus::SourceNotfound
@@ -170,6 +214,7 @@ impl RoleEnum {
                 }
             }
             RoleEnum::Porter(status) => {
+                status.action_status = ActionStatus::NoWork;
                 if !matches!(
                     status.creep_status,
                     CreepStatus::UseEnergy | CreepStatus::FindEnergy | CreepStatus::SourceNotfound
@@ -184,6 +229,7 @@ impl RoleEnum {
                 }
             }
             RoleEnum::Repairer(status) => {
+                status.action_status = ActionStatus::NoWork;
                 if !matches!(
                     status.creep_status,
                     CreepStatus::UseEnergy | CreepStatus::FindEnergy | CreepStatus::SourceNotfound
@@ -239,7 +285,7 @@ impl RoleEnum {
                 _ => false,
             },
             RoleEnum::Porter(status) => match action {
-                ActionStatus::CarryUp | ActionStatus::PickUp => {
+                ActionStatus::CarryUp | ActionStatus::PickUp | ActionStatus::Harversting => {
                     matches!(
                         status.creep_status,
                         CreepStatus::FindEnergy | CreepStatus::SourceNotfound

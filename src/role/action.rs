@@ -3,7 +3,7 @@ use wasm_bindgen::JsValue;
 
 use crate::{
     global::SOURCE_MANAGER,
-    model::ctx::{ActionStatus, StoreStatus},
+    model::ctx::{ActionStatus, CreepStatus, StoreStatus},
     utils::{self, errorx::ScreepError, find::FindStoreOption},
 };
 
@@ -43,6 +43,22 @@ pub trait ICreepAction {
         let prop = self.get_creep_mut();
         prop.ctx.store_status = StoreStatus::new(&prop.creep);
         prop.ctx.role.reset_status(prop.ctx.store_status.clone());
+    }
+
+    /// 取消绑定
+    fn cancel_bind_structure(&self) {
+        let prop = self.get_creep();
+        if prop.ctx.role.creep_status != CreepStatus::UseEnergy {
+            return;
+        }
+        SOURCE_MANAGER.with(|manager| {
+            let mut manager = manager.borrow_mut();
+            let room_id = prop.room.name().to_string();
+            let creep_id = prop.creep.name().to_string();
+            if prop.ctx.role.is_cancel_bind() {
+                manager.cancel_bind(room_id, creep_id);
+            }
+        });
     }
 
     // 收割能源
@@ -290,7 +306,7 @@ pub trait ICreepAction {
 
         let prop = self.get_creep_mut();
         if let Some(structure) =
-            utils::find::find_store(&prop.creep, &prop.room, Some(FindStoreOption::carry_up()))
+            utils::find::find_store(&prop.creep, &prop.room, Some(FindStoreOption::porter_up()))
         {
             if let Some(store) = structure.as_withdrawable() {
                 match prop.creep.withdraw(store, ResourceType::Energy, None) {
@@ -325,6 +341,50 @@ pub trait ICreepAction {
     }
 
     /// 使用携带的能量修复受损建筑。需要 WORK 和 CARRY 身体部件。目标必须位于以 creep 为中心的 7*7 正方形区域内。
+    fn repair_rampart(&mut self) -> anyhow::Result<Option<()>> {
+        let prop = self.get_creep_mut();
+        if !prop.ctx.role.check(ActionStatus::Repair) {
+            return Ok(None);
+        }
+
+        let site = SOURCE_MANAGER.with(|manager| {
+            let mut manager = manager.borrow_mut();
+            manager.find_and_bind_rampart(prop.room.name().to_string(), &prop.creep)
+        });
+
+        let site = match site {
+            Some(r) => r,
+            None => return Ok(None),
+        };
+
+        match prop.creep.repair(&site) {
+            Ok(_) => {
+                prop.ctx.role.change_action(ActionStatus::Repair);
+                Ok(Some(()))
+            }
+            Err(e) => match e {
+                ErrorCode::NotInRange => {
+                    prop.ctx.role.change_action(ActionStatus::Repair);
+                    match utils::line::route_option(
+                        &prop.creep,
+                        &site,
+                        utils::line::LineStatus::Carry,
+                    ) {
+                        Ok(_) => Ok(Some(())),
+                        Err(e) => {
+                            log::warn!("{:?}", e);
+                            Err(ScreepError::ScreepInner.into())
+                        }
+                    }
+                }
+                _ => {
+                    log::error!("{:?}", e);
+                    Err(ScreepError::ScreepInner.into())
+                }
+            },
+        }
+    }
+
     fn repair(&mut self) -> anyhow::Result<Option<()>> {
         let prop = self.get_creep_mut();
         if !prop.ctx.role.check(ActionStatus::Repair) {
@@ -335,15 +395,14 @@ pub trait ICreepAction {
             structure_list,
             vec![
                 StructureType::Tower,
-                StructureType::Rampart,
+                StructureType::Wall,
                 StructureType::Road,
                 StructureType::Container,
                 StructureType::Extension,
                 StructureType::Storage,
-                StructureType::Wall,
             ],
         );
-        match utils::find::priority_die(&structure_list) {
+        match utils::find::get_near_site(&prop.creep, &structure_list) {
             Some(site) => match prop.creep.repair(site.as_structure()) {
                 Ok(_) => {
                     prop.ctx.role.change_action(ActionStatus::Repair);
