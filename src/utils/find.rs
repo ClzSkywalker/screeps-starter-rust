@@ -284,7 +284,7 @@ pub fn find_need_repair(room: &Room) -> Vec<StructureObject> {
         .into_iter()
         .filter(|item| {
             let item = item.as_structure();
-            item.hits_max() - item.hits() > 100
+            item.hits_max() - item.hits() > 0
         })
         .collect()
 }
@@ -418,4 +418,3 @@ pub fn priority_structure(
 //     };
 //     None
 // }
-

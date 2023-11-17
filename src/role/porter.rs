@@ -49,17 +49,17 @@ impl IRoleAction for Porter {
             }
         }
 
-        match self.harveste() {
-            Ok(r) => {
-                if r.is_some() {
-                    return Ok(());
-                }
-            }
-            Err(e) => {
-                log::warn!("{:?}", e);
-                return Err(e);
-            }
-        }
+        // match self.harveste() {
+        //     Ok(r) => {
+        //         if r.is_some() {
+        //             return Ok(());
+        //         }
+        //     }
+        //     Err(e) => {
+        //         log::warn!("{:?}", e);
+        //         return Err(e);
+        //     }
+        // }
 
         match self.transfer(Some(find::FindStoreOption::porter_down())) {
             Ok(r) => {

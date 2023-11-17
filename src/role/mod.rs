@@ -146,9 +146,9 @@ impl RoleEnum {
     pub fn is_cancel_bind(&self) -> bool {
         match self {
             RoleEnum::Harvester(s) => !matches!(s.action_status, ActionStatus::Harversting),
-            RoleEnum::Upgrader(_) => false,
-            RoleEnum::Builder(_) => false,
-            RoleEnum::Porter(_) => false,
+            RoleEnum::Upgrader(_) => true,
+            RoleEnum::Builder(_) => true,
+            RoleEnum::Porter(_) => true,
             RoleEnum::Repairer(s) => !matches!(s.action_status, ActionStatus::Repair),
         }
     }
