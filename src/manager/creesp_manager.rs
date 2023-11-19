@@ -13,6 +13,8 @@ use crate::{
     utils::{self, errorx::ScreepError},
 };
 
+use super::source_manager::{StructureInfo, StructureInfoEnum};
+
 // creep 管理器
 #[derive(Debug, Default)]
 pub struct ScreepManager {
@@ -110,13 +112,16 @@ pub struct RoomScreepsItem {
 
 impl RoomScreepsItem {
     pub fn can_spawing(&self) -> bool {
-        let mut harvester_count = 0;
-        let mut rampart_count = 0;
+        let mut harvester_count: usize = 0;
+        let rampart_count = 4;
         global::SOURCE_MANAGER.with(|manager| {
             let manager = manager.borrow();
             if let Some(m) = manager.get_memory(self.room_id.clone()) {
-                harvester_count = m.source_count;
-                rampart_count = m.rampart_count;
+                harvester_count = *m
+                    .source_max_map
+                    .get(&StructureInfoEnum::Source(StructureInfo::default()).to_string())
+                    .unwrap_or(&usize::default());
+                // rampart_count = m.rampart_count;
             }
         });
         let creep_count =
@@ -145,7 +150,6 @@ impl RoomScreepsItem {
             ..Default::default()
         }
     }
-
     // 读取每个creep memory初始化，只读取memory能够解析的creep
     pub fn init(&mut self) -> anyhow::Result<()> {
         let room = match RoomName::from_str(&self.room_id) {
@@ -224,7 +228,12 @@ impl RoomScreepsItem {
             Err(e) => return Err(e.into()),
         };
 
-        if self.harvester < room_source_info.source_count {
+        if self.harvester
+            < *room_source_info
+                .source_max_map
+                .get(&StructureInfoEnum::Source(StructureInfo::default()).to_string())
+                .unwrap_or(&usize::default())
+        {
             return Ok(RoleEnum::Harvester(RoleStatus::default()).default());
         }
 
@@ -244,14 +253,14 @@ impl RoomScreepsItem {
 
         if self.porter < self.harvester {
             Ok(RoleEnum::Porter(RoleStatus::default()).default())
-        } else if self.builder < 2 {
+        } else if self.builder < 4 {
             Ok(RoleEnum::Builder(RoleStatus::default()).default())
         } else if self.upgrader < 2 {
             Ok(RoleEnum::Upgrader(RoleStatus::default()).default())
-        } else if self.repairer < room_source_info.rampart_count {
+        } else if self.repairer < 4 {
             Ok(RoleEnum::Repairer(RoleStatus::default()).default())
         } else {
-            Ok(RoleEnum::Builder(RoleStatus::default()).default())
+            Ok(RoleEnum::Porter(RoleStatus::default()).default())
         }
     }
 

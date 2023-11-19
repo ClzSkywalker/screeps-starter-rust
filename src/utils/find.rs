@@ -6,7 +6,7 @@ use screeps::{
     prelude::*,
     ConstructionSite, Creep, Position, Resource, ResourceType, Room, RoomName, Source,
     StructureController, StructureExtension, StructureObject, StructureRampart, StructureType,
-    Tombstone,
+    StructureWall, Tombstone,
 };
 
 use super::errorx::ScreepError;
@@ -38,6 +38,26 @@ pub fn find_rampart_all(room: &Room) -> Vec<StructureRampart> {
     let mut target: Vec<StructureRampart> = Vec::new();
     for structure in room.find(find::STRUCTURES, None).iter() {
         if let StructureObject::StructureRampart(site) = structure {
+            target.push(site.clone());
+        }
+    }
+    target
+}
+
+pub fn find_wall_all(room: &Room) -> Vec<StructureWall> {
+    let mut target: Vec<StructureWall> = Vec::new();
+    for structure in room.find(find::STRUCTURES, None).iter() {
+        if let StructureObject::StructureWall(site) = structure {
+            target.push(site.clone());
+        }
+    }
+    target
+}
+
+pub fn find_ext_all(room: &Room) -> Vec<StructureExtension> {
+    let mut target: Vec<StructureExtension> = Vec::new();
+    for structure in room.find(find::STRUCTURES, None).iter() {
+        if let StructureObject::StructureExtension(site) = structure {
             target.push(site.clone());
         }
     }
@@ -85,9 +105,10 @@ impl FindStoreOption {
                 StructureType::Spawn,
                 StructureType::Extension,
                 StructureType::Tower,
+                StructureType::Storage,
             ],
             select_structures: Default::default(),
-            priority: None,
+            priority: Some(vec![StructureType::Container]),
             range: None,
         }
     }
@@ -103,15 +124,29 @@ impl FindStoreOption {
                 StructureType::Extension,
                 StructureType::Tower,
                 StructureType::Storage,
-                StructureType::Wall,
             ]),
             priority: Some(vec![
                 StructureType::Extension,
                 StructureType::Spawn,
                 StructureType::Tower,
                 StructureType::Storage,
-                StructureType::Wall,
             ]),
+            range: None,
+        }
+    }
+
+    pub fn builder_up() -> Self {
+        Self {
+            resource_type: Some(ResourceType::Energy),
+            status: FindStoreStatus::UseCapacity,
+            withdraw: true,
+            ignore_structures: vec![
+                StructureType::Spawn,
+                StructureType::Extension,
+                StructureType::Tower,
+            ],
+            select_structures: Default::default(),
+            priority: Some(vec![StructureType::Storage, StructureType::Container]),
             range: None,
         }
     }
@@ -131,6 +166,26 @@ impl FindStoreOption {
                 StructureType::Tower,
                 StructureType::Road,
                 StructureType::Wall,
+            ]),
+            range: None,
+        }
+    }
+
+    pub fn spawn_ext_down() -> Self {
+        Self {
+            resource_type: Some(ResourceType::Energy),
+            status: FindStoreStatus::FreeCapacity,
+            withdraw: false,
+            ignore_structures: Default::default(),
+            select_structures: Some(vec![
+                StructureType::Spawn,
+                StructureType::Extension,
+                StructureType::Container,
+            ]),
+            priority: Some(vec![
+                StructureType::Spawn,
+                StructureType::Extension,
+                StructureType::Container,
             ]),
             range: None,
         }
@@ -418,3 +473,4 @@ pub fn priority_structure(
 //     };
 //     None
 // }
+

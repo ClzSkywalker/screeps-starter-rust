@@ -9,7 +9,7 @@ use screeps::{
     find, game,
     look::{self},
     Creep, HasHits, HasPosition, HasTypedId, ObjectId, Position, Room, SharedCreepProperties,
-    Source, StructureRampart, StructureWall,
+    Source, StructureExtension, StructureRampart, StructureWall,
 };
 use serde::{Deserialize, Serialize};
 
@@ -59,11 +59,11 @@ impl StructureManager {
         &mut self,
         room_id: String,
         creep: &Creep,
-    ) -> Option<StructureRampart> {
+    ) -> Option<screeps::RoomObject> {
         if let Some(source_i) = self.find_rampart_can_work(room_id.clone(), creep) {
             if let Ok(r) = self.bind_source(room_id.clone(), source_i.id().to_string(), creep) {
                 if r.is_some() {
-                    return Some(source_i);
+                    return Some(source_i.into());
                 }
             }
             log::info!("source not found");
@@ -204,8 +204,7 @@ impl Default for StructureManager {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct RoomSourceItem {
     pub room_id: String,
-    pub source_count: usize,  // 挖掘资源的最大人数
-    pub rampart_count: usize, // 挖掘资源的最大人数
+    pub source_max_map: HashMap<String, usize>, // 每个建筑最多绑定人数
     pub source_map: HashMap<String, StructureInfoEnum>,
 }
 
@@ -220,8 +219,10 @@ impl RoomSourceItem {
 
     /// 初始化结构，查询能够该source能够最多被多少个creep挖掘
     pub fn init(&mut self) -> anyhow::Result<()> {
-        self.source_count = 0;
-        self.rampart_count = 0;
+        let mut source_count: usize = 0;
+        let mut rampart_count: usize = 0;
+        let mut wall_count: usize = 0;
+        let mut ext_count: usize = 0;
         let room = match utils::find::find_room(self.room_id.clone()) {
             Ok(r) => r,
             Err(e) => {
@@ -235,7 +236,8 @@ impl RoomSourceItem {
                 ele.id().to_string(),
                 ele.pos(),
             );
-            self.source_count += info.max_count;
+
+            source_count += info.max_count;
             self.source_map.insert(ele.id().to_string(), info);
         }
         for ele in utils::find::find_rampart_all(&room) {
@@ -244,20 +246,56 @@ impl RoomSourceItem {
                 ele.id().to_string(),
                 ele.pos(),
             );
-            self.rampart_count += info.max_count;
+            rampart_count += info.max_count;
             self.source_map.insert(ele.id().to_string(), info);
         }
-        // 多出一个刷墙
-        self.rampart_count += 1;
+
+        for ele in utils::find::find_wall_all(&room) {
+            let info = StructureInfoEnum::Rampart(StructureInfo::default()).init(
+                &room,
+                ele.id().to_string(),
+                ele.pos(),
+            );
+            wall_count += info.max_count;
+            self.source_map.insert(ele.id().to_string(), info);
+        }
+
+        for ele in utils::find::find_ext_all(&room) {
+            let info = StructureInfoEnum::Extension(StructureInfo::default()).init(
+                &room,
+                ele.id().to_string(),
+                ele.pos(),
+            );
+            ext_count += info.max_count;
+            self.source_map.insert(ele.id().to_string(), info);
+        }
+        self.source_max_map = HashMap::from([
+            (
+                StructureInfoEnum::Source(StructureInfo::default()).to_string(),
+                source_count,
+            ),
+            (
+                StructureInfoEnum::Rampart(StructureInfo::default()).to_string(),
+                rampart_count,
+            ),
+            (
+                StructureInfoEnum::Wall(StructureInfo::default()).to_string(),
+                wall_count,
+            ),
+            (
+                StructureInfoEnum::Extension(StructureInfo::default()).to_string(),
+                ext_count,
+            ),
+        ]);
 
         Ok(())
     }
 
     /// 检测自身数据是否正常
     pub fn check(&mut self) {
-        let mut vm_key=Vec::new();
+        let mut vm_key = Vec::new();
         for (key, structure_info) in self.source_map.iter_mut() {
-            if !structure_info.check_exist(){
+            if !structure_info.check_exist() {
                 vm_key.push(key.clone());
                 continue;
             }
@@ -315,9 +353,14 @@ impl RoomSourceItem {
 
 #[derive(Debug, Clone, strum::Display, Serialize, Deserialize)]
 pub enum StructureInfoEnum {
+    #[strum(serialize = "source")]
     Source(StructureInfo),
+    #[strum(serialize = "rampart")]
     Rampart(StructureInfo),
+    #[strum(serialize = "wall")]
     Wall(StructureInfo),
+    #[strum(serialize = "extension")]
+    Extension(StructureInfo),
 }
 
 impl Deref for StructureInfoEnum {
@@ -328,6 +371,7 @@ impl Deref for StructureInfoEnum {
             Self::Source(s) => s,
             Self::Rampart(s) => s,
             Self::Wall(s) => s,
+            Self::Extension(s) => s,
         }
     }
 }
@@ -338,6 +382,7 @@ impl DerefMut for StructureInfoEnum {
             Self::Source(s) => s,
             Self::Rampart(s) => s,
             Self::Wall(s) => s,
+            Self::Extension(s) => s,
         }
     }
 }
@@ -392,6 +437,16 @@ impl StructureInfoEnum {
                     work: true,
                 };
                 Self::Wall(info)
+            }
+            Self::Extension(_) => {
+                let info = StructureInfo {
+                    room_id: room.name().to_string(),
+                    creeps: Vec::default(),
+                    object_id: structure_id,
+                    max_count: 1,
+                    work: true,
+                };
+                Self::Extension(info)
             }
         }
     }
@@ -452,7 +507,56 @@ impl StructureInfoEnum {
                 }
                 s.work = true;
             }
-            StructureInfoEnum::Wall(_) => {}
+            StructureInfoEnum::Wall(s) => {
+                s.creeps
+                    .retain(|item| game::creeps().get(item.to_string()).is_some());
+                let id = s.object_id.as_str();
+                let site_id: ObjectId<StructureWall> = match ObjectId::from_str(id) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        log::error!("err:{},value:{}", e, id);
+                        return;
+                    }
+                };
+                let site = match game::get_object_by_id_typed(&site_id) {
+                    Some(r) => r,
+                    None => {
+                        log::warn!("get id none:{}", site_id);
+                        return;
+                    }
+                };
+                if site.hits() >= site.hits_max() {
+                    s.work = false;
+                    s.creeps.clear();
+                    return;
+                }
+                s.work = true;
+            }
+            StructureInfoEnum::Extension(s) => {
+                s.creeps
+                    .retain(|item| game::creeps().get(item.to_string()).is_some());
+                let id = s.object_id.as_str();
+                let site_id: ObjectId<StructureExtension> = match ObjectId::from_str(id) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        log::error!("err:{},value:{}", e, id);
+                        return;
+                    }
+                };
+                let site = match game::get_object_by_id_typed(&site_id) {
+                    Some(r) => r,
+                    None => {
+                        log::warn!("get id none:{}", site_id);
+                        return;
+                    }
+                };
+                if site.hits() >= site.hits_max() {
+                    s.work = false;
+                    s.creeps.clear();
+                    return;
+                }
+                s.work = true;
+            }
         }
     }
 
@@ -488,6 +592,16 @@ impl StructureInfoEnum {
                 };
                 game::get_object_by_id_typed(&site_id).is_some()
             }
+            StructureInfoEnum::Extension(s) => {
+                let site_id: ObjectId<StructureExtension> = match ObjectId::from_str(&s.object_id) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        log::error!("err:{},value:{}", e, s.object_id);
+                        return false;
+                    }
+                };
+                game::get_object_by_id_typed(&site_id).is_some()
+            }
         }
     }
 }
@@ -500,3 +614,4 @@ pub struct StructureInfo {
     pub max_count: usize,    // 最大的工作挖掘人数
     pub work: bool,          // 该资源是否能正常工作
 }
+

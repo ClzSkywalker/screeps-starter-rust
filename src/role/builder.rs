@@ -1,6 +1,9 @@
 use log::*;
 
-use crate::utils::{errorx::ScreepError, find};
+use crate::utils::{
+    errorx::ScreepError,
+    find::{self, FindStoreOption},
+};
 
 use super::{action::ICreepAction, creep::CreepProp, IRoleAction};
 
@@ -19,12 +22,12 @@ impl ICreepAction for Builder {
 }
 
 impl IRoleAction for Builder {
-    fn new(creep: CreepProp) -> impl IRoleAction {
-        Builder { creep }
+    fn new(creep: CreepProp) -> Self {
+        Self { creep }
     }
 
     fn work_line(&mut self) -> anyhow::Result<()> {
-        match self.withdraw() {
+        match self.withdraw(Some(FindStoreOption::builder_up())) {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
@@ -77,6 +80,25 @@ impl IRoleAction for Builder {
             "{}",
             ScreepError::RoleCanNotWork(self.creep.ctx.role.to_string())
         );
+        Ok(())
+    }
+
+    fn run(&mut self) -> anyhow::Result<()> {
+        if !self.check() {
+            return Ok(());
+        }
+
+        self.set_status();
+
+        if let Err(e) = self.work_line() {
+            warn!("{:?}", e);
+            return Err(e);
+        }
+
+        self.say();
+        self.cancel_bind_structure();
+        self.set_memory();
+
         Ok(())
     }
 }

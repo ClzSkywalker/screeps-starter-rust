@@ -2,7 +2,12 @@ use screeps::{game, look, HasPosition, StructureType};
 
 use crate::{
     global,
-    utils::{self, errorx::ScreepError, find},
+    manager::source_manager::{StructureInfo, StructureInfoEnum},
+    utils::{
+        self,
+        errorx::ScreepError,
+        find::{self, FindStoreOption},
+    },
 };
 
 use super::{action::ICreepAction, creep::CreepProp, IRoleAction};
@@ -22,7 +27,7 @@ impl ICreepAction for Harvester {
 }
 
 impl IRoleAction for Harvester {
-    fn new(creep: CreepProp) -> impl IRoleAction {
+    fn new(creep: CreepProp) -> Self {
         Harvester { creep }
     }
 
@@ -39,7 +44,7 @@ impl IRoleAction for Harvester {
             }
         }
 
-        match self.withdraw() {
+        match self.withdraw(Some(FindStoreOption::builder_up())) {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
@@ -72,7 +77,12 @@ impl IRoleAction for Harvester {
         let create_creep = global::SOURCE_MANAGER.with(|manager| {
             let manager = manager.borrow();
             if let Some(r) = manager.room_item.get(&self.creep.room.name().to_string()) {
-                return creep_count < r.source_count;
+                // 需要一个额外的Porter帮忙生产
+                return creep_count
+                    < *r.source_max_map
+                        .get(&StructureInfoEnum::Source(StructureInfo::default()).to_string())
+                        .unwrap_or(&usize::default())
+                        + 1;
             }
             false
         });
@@ -94,7 +104,7 @@ impl IRoleAction for Harvester {
             })
             .count();
             if count > 0 {
-                match self.transfer(Some(find::FindStoreOption::porter_down())) {
+                match self.transfer(Some(find::FindStoreOption::spawn_ext_down())) {
                     Ok(r) => {
                         if r.is_some() {
                             return Ok(());

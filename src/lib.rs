@@ -42,10 +42,27 @@ pub fn game_loop() {
     global::SCREEP_MANAGER.with(|manager| {
         let manager = manager.borrow();
         for spawn in game::spawns().values() {
+            if spawn.spawning().is_some() {
+                continue;
+            }
             let room = spawn.room().unwrap();
             let ext_count = utils::find::get_extension_count(&room).len();
             let mut body = vec![Part::Move, Part::Carry, Part::Work, Part::Work];
-            if ext_count >= 10 {
+            if ext_count >= 16 {
+                body.append(&mut vec![
+                    Part::Carry,
+                    Part::Carry,
+                    Part::Carry,
+                    Part::Carry,
+                    Part::Move,
+                    Part::Move,
+                    Part::Move,
+                    Part::Move,
+                    Part::Work,
+                    Part::Work,
+                    Part::Work,
+                ]);
+            } else if ext_count >= 10 {
                 body.append(&mut vec![
                     Part::Carry,
                     Part::Carry,

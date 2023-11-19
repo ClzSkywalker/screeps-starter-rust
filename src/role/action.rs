@@ -287,7 +287,7 @@ pub trait ICreepAction {
                             }
                         }
                         _ => {
-                            log::warn!("{:?}", e);
+                            log::warn!("{:?}:{:?}", e, store.as_structure());
                             return Err(ScreepError::ScreepInner.into());
                         }
                     },
@@ -298,16 +298,14 @@ pub trait ICreepAction {
     }
 
     /// 从存储点取能量
-    fn withdraw(&mut self) -> anyhow::Result<Option<()>> {
+    fn withdraw(&mut self, option: Option<FindStoreOption>) -> anyhow::Result<Option<()>> {
         let prop = self.get_creep_mut();
         if !prop.ctx.role.check(ActionStatus::CarryUp) {
             return Ok(None);
         }
 
         let prop = self.get_creep_mut();
-        if let Some(structure) =
-            utils::find::find_store(&prop.creep, &prop.room, Some(FindStoreOption::porter_up()))
-        {
+        if let Some(structure) = utils::find::find_store(&prop.creep, &prop.room, option) {
             if let Some(store) = structure.as_withdrawable() {
                 match prop.creep.withdraw(store, ResourceType::Energy, None) {
                     Ok(_) => {
@@ -395,11 +393,11 @@ pub trait ICreepAction {
             structure_list,
             vec![
                 StructureType::Tower,
-                StructureType::Wall,
-                StructureType::Road,
+                StructureType::Storage,
                 StructureType::Container,
                 StructureType::Extension,
-                StructureType::Storage,
+                StructureType::Wall,
+                StructureType::Road,
             ],
         );
         match utils::find::get_near_site(&prop.creep, &structure_list) {

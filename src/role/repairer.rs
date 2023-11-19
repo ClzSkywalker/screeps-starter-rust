@@ -1,6 +1,9 @@
 use log::*;
 
-use crate::utils::{errorx::ScreepError, find};
+use crate::utils::{
+    errorx::ScreepError,
+    find::{self, FindStoreOption},
+};
 
 use super::{action::ICreepAction, creep::CreepProp, IRoleAction};
 
@@ -25,7 +28,7 @@ impl IRoleAction for Repairer {
     }
 
     fn work_line(&mut self) -> anyhow::Result<()> {
-        match self.withdraw() {
+        match self.withdraw(Some(FindStoreOption::builder_up())) {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());
@@ -103,3 +106,4 @@ impl IRoleAction for Repairer {
         Ok(())
     }
 }
+

@@ -1,6 +1,6 @@
 use log::*;
 
-use crate::utils::errorx::ScreepError;
+use crate::utils::{errorx::ScreepError, find::FindStoreOption};
 
 use super::{action::ICreepAction, creep::CreepProp, IRoleAction};
 
@@ -19,12 +19,12 @@ impl ICreepAction for Upgrader {
 }
 
 impl IRoleAction for Upgrader {
-    fn new(creep: CreepProp) -> impl IRoleAction {
+    fn new(creep: CreepProp) -> Self {
         Upgrader { creep }
     }
 
     fn work_line(&mut self) -> anyhow::Result<()> {
-        match self.withdraw() {
+        match self.withdraw(Some(FindStoreOption::builder_up())) {
             Ok(r) => {
                 if r.is_some() {
                     return Ok(());

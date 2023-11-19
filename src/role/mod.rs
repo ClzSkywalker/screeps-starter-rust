@@ -20,7 +20,7 @@ pub mod upgrader;
 
 pub trait IRoleAction: ICreepAction {
     // 创建实例
-    fn new(creep: CreepProp) -> impl IRoleAction;
+    fn new(creep: CreepProp) -> Self;
     // 工作线
     fn work_line(&mut self) -> anyhow::Result<()>;
     // 执行
