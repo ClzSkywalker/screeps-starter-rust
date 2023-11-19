@@ -113,7 +113,7 @@ pub struct RoomScreepsItem {
 impl RoomScreepsItem {
     pub fn can_spawing(&self) -> bool {
         let mut harvester_count: usize = 0;
-        let rampart_count = 4;
+        let rampart_count = 2;
         global::SOURCE_MANAGER.with(|manager| {
             let manager = manager.borrow();
             if let Some(m) = manager.get_memory(self.room_id.clone()) {
@@ -137,11 +137,11 @@ impl RoomScreepsItem {
                         .filter(|item| item.structure_type() == StructureType::Container)
                         .count();
                     return container_count > 0
-                        && creep_count < harvester_count * 4 + rampart_count;
+                        && creep_count < harvester_count + 6 + rampart_count;
                 }
             }
         }
-        creep_count < harvester_count * 4 + rampart_count
+        creep_count < harvester_count + 6 + rampart_count
     }
 
     pub fn new(id: String) -> RoomScreepsItem {
@@ -253,11 +253,11 @@ impl RoomScreepsItem {
 
         if self.porter < self.harvester {
             Ok(RoleEnum::Porter(RoleStatus::default()).default())
-        } else if self.builder < 4 {
+        } else if self.builder < 2 {
             Ok(RoleEnum::Builder(RoleStatus::default()).default())
         } else if self.upgrader < 2 {
             Ok(RoleEnum::Upgrader(RoleStatus::default()).default())
-        } else if self.repairer < 4 {
+        } else if self.repairer < 2 {
             Ok(RoleEnum::Repairer(RoleStatus::default()).default())
         } else {
             Ok(RoleEnum::Porter(RoleStatus::default()).default())
