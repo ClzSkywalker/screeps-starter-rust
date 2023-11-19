@@ -16,7 +16,7 @@ use super::errorx::ScreepError;
 /// * `room`:
 pub fn find_source_all(room: &Room) -> Vec<Source> {
     let mut target: Vec<Source> = Vec::new();
-    for source in room.find(find::SOURCES_ACTIVE, None).iter() {
+    for source in room.find(find::SOURCES, None).iter() {
         target.push(source.clone());
     }
     target
